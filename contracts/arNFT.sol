@@ -110,9 +110,10 @@ contract arInsure is
             require(msg.value == coverPrice, "Incorrect value sent");
             
         } else {
+
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
+
             require(msg.value == 0, "Eth not required when buying with erc20");  // TODO check failure case
-            //require(erc20.transferFrom(msg.sender, address(this), requiredValue), "Transfer failed");
             require(erc20.transferFrom(msg.sender, address(this), coverPrice), "Transfer failed");
         
         }
@@ -138,6 +139,7 @@ contract arInsure is
             claimIds[tokenId] = claimId;
             
             return;
+
         }
         
         (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(tokenId);
@@ -150,8 +152,6 @@ contract arInsure is
         }
         
         require(validUntil >= block.timestamp, "Token is expired"); //TODO check expired case
-
-        //uint claimId = _submitClaim(tokens[tokenId].coverId);
         
         uint256 claimId = _submitClaim(coverId);
         claimIds[tokenId] = claimId;
@@ -185,6 +185,7 @@ contract arInsure is
       public
     {
         require(ynft.transferFrom(msg.sender, address(this), _tokenId), "yNFT was not successfully transferred.");
+        
         (uint256 coverId, /*claimId*/) = _getCoverAndClaim(_tokenId);
         _mint(msg.sender, coverId);
     }
@@ -197,7 +198,9 @@ contract arInsure is
       external
     {
         for (uint256 i = 0; i < _tokenIds.length; i++) {
+
             swapYnft(_tokenIds[i]);
+
         }
     }
     
@@ -205,11 +208,9 @@ contract arInsure is
      * @dev Owner can approve the contract for any new ERC20 (so we don't need to in every buy).
      *      Added with arNFT.
      * @param _tokenAddress Address of the ERC20 that we want approved.
-     * @notice We don't need this to be onlyOwner, do we?
     **/
     function approveToken(address _tokenAddress)
       external
-      //onlyOwner
     {
         Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
         address payable pool1Address = address(uint160(address(pool1)));
@@ -283,13 +284,19 @@ contract arInsure is
     
         uint coverPrice = coverDetails[1];
         Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+
         if (coverCurrency == "ETH") {
+
             pool1.makeCoverBegin.value(coverPrice)(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+
         } else {
+
             pool1.makeCoverUsingCA(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+
         }
     
         QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+
         // *assumes* the newly created claim is appended at the end of the list covers
         coverId = quotationData.getCoverLength().sub(1);
     }
@@ -315,19 +322,21 @@ contract arInsure is
      * @notice I think this has no decimals?
     **/
     function _sendAssuredSum(bytes4 coverCurrency, uint sumAssured) internal {
-        /**
-         * @notice Change 1e18 to token decimals.
-        **/
-        uint256 claimReward = sumAssured * 1e18;
+        uint256 claimReward;
+
         if (coverCurrency == ethCurrency) {
             
+            claimReward = sumAssured * (10 ** 18);
             msg.sender.transfer(claimReward);
             
         } else {
             
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
-            
+            uint256 decimals = uint256(erc20.decimals())
+        
+            claimReward = sumAssured * (10 ** decimals);
             require(erc20.transfer(msg.sender, claimReward), "Transfer failed"); //TODO not necessary
+        
         }
     }
     
