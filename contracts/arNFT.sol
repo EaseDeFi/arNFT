@@ -132,12 +132,7 @@ contract arInsure is
         // If this was a yNFT swap, we must route the submit through them.
         if (swapIds[tokenId] != 0) {
             
-            uint256 ynftTokenId = swapIds[tokenId];
-            ynft.submitClaim(ynftTokenId);
-            
-            (/*coverId*/, uint256 claimId) = _getCoverAndClaim(ynftTokenId);
-            claimIds[tokenId] = claimId;
-            
+            _submitYnftClaim(tokenId);
             return;
 
         }
@@ -317,6 +312,33 @@ contract arInsure is
     }
     
     /**
+     * Submits a claim through yNFT if this was a swapped token.
+     * @param _tokenId ID of the token on the arNFT contract.
+    **/
+    function _submitYnftClaim(uint256 _tokenId)
+      internal
+    {
+        uint256 ynftTokenId = swapIds[_tokenId];
+        ynft.submitClaim(ynftTokenId);
+        
+        (/*coverId*/, uint256 claimId) = _getCoverAndClaim(ynftTokenId);
+        claimIds[_tokenId] = claimId;
+    }
+
+    /**
+     * @dev Check whether the payout of a claim has occurred.
+     * @param claimId ID of the claim we are checking.
+     * @return True if claim has been paid out, false if not.
+    **/
+    function _payoutIsCompleted(uint claimId) internal view returns (bool) {
+        uint256 status;
+        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        (, status, , , ) = claims.getClaimbyIndex(claimId);
+        return status == uint(ClaimStatus.FinalClaimAssessorVoteAccepted)
+            || status == uint(ClaimStatus.ClaimAcceptedPayoutDone);
+    }
+
+    /**
      * @dev Send tokens after a successful redeem claim.
      * @param coverCurrency bytes4 of the currency being used.
      * @param sumAssured The amount of the currency to send.
@@ -414,19 +436,6 @@ contract arInsure is
     function _getLockTokenTimeAfterCoverExpiry() internal returns (uint) {
         TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
         return tokenData.lockTokenTimeAfterCoverExp();
-    }
-
-    /**
-     * @dev Check whether the payout of a claim has occurred.
-     * @param claimId ID of the claim we are checking.
-     * @return True if claim has been paid out, false if not.
-    **/
-    function _payoutIsCompleted(uint claimId) internal view returns (bool) {
-        uint256 status;
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
-        (, status, , , ) = claims.getClaimbyIndex(claimId);
-        return status == uint(ClaimStatus.FinalClaimAssessorVoteAccepted)
-            || status == uint(ClaimStatus.ClaimAcceptedPayoutDone);
     }
     
     function nxmTokenApprove(address _spender, uint256 _value) public onlyOwner {
