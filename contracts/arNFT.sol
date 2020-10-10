@@ -151,7 +151,8 @@ contract arInsure is
             
         }
         
-        require(validUntil >= block.timestamp, "Token is expired"); //TODO check expired case
+        // A submission until it has expired + a defined amount of time.
+        require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired"); //TODO check expired case
         
         uint256 claimId = _submitClaim(coverId);
         claimIds[tokenId] = claimId;
@@ -407,6 +408,14 @@ contract arInsure is
         return nxMaster.tokenAddress();
     }
     
+    /**
+     * @dev Get the amount of time that a token can still be redeemed after it expires.
+    **/
+    function _getLockTokenTimeAfterCoverExpiry() internal returns (uint) {
+        TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
+        return tokenData.lockTokenTimeAfterCoverExp();
+    }
+
     /**
      * @dev Check whether the payout of a claim has occurred.
      * @param claimId ID of the claim we are checking.
