@@ -8,7 +8,8 @@ import "./interfaces/IERC20.sol";
 
 /** 
     @title Armor NFT
-    @dev Armor NFT allows users to purchase Nexus Mutual cover and convert it into a transferable token.
+    @dev Armor NFT allows users to purchase Nexus Mutual cover and convert it into 
+         a transferable token. It also allows users to swap their Yearn yNFT or arNFT.
     @author ArmorFi--Robert M.C. Forster, Taek Lee
 **/
 contract arNFT is
@@ -68,10 +69,10 @@ contract arNFT is
     
     /**
      * @dev Make sure only the owner of a token or someone approved to transfer it can call.
-     * @param tokenId Id of the token being checked.
+     * @param _tokenId Id of the token being checked.
     **/
-    modifier onlyTokenApprovedOrOwner(uint256 tokenId) {
-        require(_isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
+    modifier onlyTokenApprovedOrOwner(uint256 _tokenId) {
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "Not approved or owner");
         _;
     }
 
@@ -90,79 +91,83 @@ contract arNFT is
     //    coverDetails[4] = generationTime;
     /**
      * @dev Main function to buy a cover.
-     * @param coveredContractAddress Address of the protocol to buy cover for.
-     * @param coverCurrency bytes4 currency name to buy coverage for.
-     * @param coverPeriod Amount of time to buy cover for.
+     * @param _coveredContractAddress Address of the protocol to buy cover for.
+     * @param _coverCurrency bytes4 currency name to buy coverage for.
+     * @param _coverPeriod Amount of time to buy cover for.
      * @param _v , _r, _s Signature of the Nexus Mutual API.
     **/
     function buyCover(
-        address coveredContractAddress,
-        bytes4 coverCurrency,
-        uint[] calldata coverDetails,
-        uint16 coverPeriod,
+        address _coveredContractAddress,
+        bytes4 _coverCurrency,
+        uint[] calldata _coverDetails,
+        uint16 _coverPeriod,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
     ) external payable {
-        uint256 coverPrice = coverDetails[1];
+        uint256 coverPrice = _coverDetails[1];
 
-        if (coverCurrency == "ETH") {
+        if (_coverCurrency == "ETH") {
 
             require(msg.value == coverPrice, "Incorrect value sent");
         
         } else {
 
-            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
+            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
 
-            require(msg.value == 0, "Eth not required when buying with erc20");  // TODO check failure case
+            require(msg.value == 0, "Eth not required when buying with erc20");
             require(erc20.transferFrom(msg.sender, address(this), coverPrice), "Transfer failed");
         
         }
         
-        uint256 coverId = _buyCover(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+        uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
 
         _mint(msg.sender, coverId);
     }
     
     /**
      * @dev Submit a claim for the NFT after a hack has happened on its protocol.
-     * @param tokenId ID of the token a claim is being submitted for.
+     * @param _tokenId ID of the token a claim is being submitted for.
     **/
-    function submitClaim(uint256 tokenId) external onlyTokenApprovedOrOwner(tokenId) {
+    function submitClaim(uint256 _tokenId) external onlyTokenApprovedOrOwner(_tokenId) {
 
         // If this was a yNFT swap, we must route the submit through them.
-        if (swapIds[tokenId] != 0) {
-            _submitYnftClaim(tokenId);
+        if (swapIds[_tokenId] != 0) {
+
+            _submitYnftClaim(_tokenId);
             return;
+
         }
         
-        (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(tokenId);
-        if (claimIds[tokenId] > 0) {
+        (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(_tokenId);
+        if (claimIds[_tokenId] > 0) {
+
             require(coverStatus == uint8(CoverStatus.ClaimDenied),
             "Can submit another claim only if the previous one was denied.");
+
         }
         
         // A submission until it has expired + a defined amount of time.
-        require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired"); //TODO check expired case
+        require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired");
         
         uint256 claimId = _submitClaim(coverId);
-        claimIds[tokenId] = claimId;
+        claimIds[_tokenId] = claimId;
     }
     
     /**
      * @dev Redeem a claim that has been accepted and paid out.
-     * @param tokenId Id of the token to redeem claim for.
+     * @param _tokenId Id of the token to redeem claim for.
     **/
-    function redeemClaim(uint256 tokenId) public onlyTokenApprovedOrOwner(tokenId)  nonReentrant {
-        require(claimIds[tokenId] != 0, "No claim is in progress.");
+    function redeemClaim(uint256 _tokenId) public onlyTokenApprovedOrOwner(_tokenId)  nonReentrant {
+        require(claimIds[_tokenId] != 0, "No claim is in progress.");
         
-        (/*cid*/, /*memberAddress*/, /*scAddress*/, bytes4 currencyCode, /*sumAssured*/, /*premiumNXM*/) = _getCover1(tokenId);
-        ( , uint8 coverStatus, uint256 sumAssured, , ) = _getCover2(tokenId);
+        (/*cid*/, /*memberAddress*/, /*scAddress*/, bytes4 currencyCode, /*sumAssured*/, /*premiumNXM*/) = _getCover1(_tokenId);
+        ( , uint8 coverStatus, uint256 sumAssured, , ) = _getCover2(_tokenId);
         
         require(coverStatus == uint8(CoverStatus.ClaimAccepted), "Claim is not accepted");
-        require(_payoutIsCompleted(claimIds[tokenId]), "Claim accepted but payout not completed"); //TODO check failed case
+        require(_payoutIsCompleted(claimIds[_tokenId]), "Claim accepted but payout not completed");
         
-        _burn(tokenId);
+        _burn(_tokenId);
         
         _sendAssuredSum(currencyCode, sumAssured);
         
@@ -238,7 +243,7 @@ contract arNFT is
      * @param _tokenId Id of the token we're checking.
      * @return Status of the claim being made on the token.
     **/
-    function getCoverStatus(uint256 _tokenId) external view returns (uint8 coverStatus, bool payoutCompleted) {//TODO test this
+    function getCoverStatus(uint256 _tokenId) external view returns (uint8 coverStatus, bool payoutCompleted) {
         (, coverStatus, , , ) = _getCover2(_tokenId);
         
         payoutCompleted = _payoutIsCompleted(claimIds[_tokenId]);
@@ -256,7 +261,7 @@ contract arNFT is
      * @dev Change membership to new address.
      * @param _newMembership Membership address to change to.
     **/
-    function switchMembership(address _newMembership) external onlyOwner { //TODO test this
+    function switchMembership(address _newMembership) external onlyOwner {
         NXMToken nxmToken = NXMToken(nxMaster.tokenAddress());
         nxmToken.approve(getMemberRoles(),uint(-1));
         MemberRoles(getMemberRoles()).switchMembership(_newMembership);
@@ -267,25 +272,25 @@ contract arNFT is
      * @return coverId ID of the new cover that has been bought.
     **/
     function _buyCover(
-        address coveredContractAddress,
-        bytes4 coverCurrency,
-        uint[] memory coverDetails,
-        uint16 coverPeriod,
+        address _coveredContractAddress,
+        bytes4 _coverCurrency,
+        uint[] memory _coverDetails,
+        uint16 _coverPeriod,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
     ) internal returns (uint256 coverId) {
     
-        uint256 coverPrice = coverDetails[1];
+        uint256 coverPrice = _coverDetails[1];
         Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
 
-        if (coverCurrency == "ETH") {
+        if (_coverCurrency == "ETH") {
 
-            pool1.makeCoverBegin.value(coverPrice)(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+            pool1.makeCoverBegin.value(coverPrice)(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
 
         } else {
 
-            pool1.makeCoverUsingCA(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+            pool1.makeCoverUsingCA(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
 
         }
     
@@ -297,12 +302,12 @@ contract arNFT is
     
     /**
      * @dev Internal submit claim function.
-     * @param coverId on the NXM contract (same as our token ID).
+     * @param _coverId on the NXM contract (same as our token ID).
      * @return claimId of the new claim.
     **/
-    function _submitClaim(uint256 coverId) internal returns (uint256) {
+    function _submitClaim(uint256 _coverId) internal returns (uint256) {
         Claims claims = Claims(nxMaster.getLatestAddress("CL"));
-        claims.submitClaim(coverId);
+        claims.submitClaim(_coverId);
     
         ClaimsData claimsData = ClaimsData(nxMaster.getLatestAddress("CD"));
         uint256 claimId = claimsData.actualClaimLength() - 1;
@@ -325,37 +330,37 @@ contract arNFT is
 
     /**
      * @dev Check whether the payout of a claim has occurred.
-     * @param claimId ID of the claim we are checking.
+     * @param _claimId ID of the claim we are checking.
      * @return True if claim has been paid out, false if not.
     **/
-    function _payoutIsCompleted(uint256 claimId) internal view returns (bool) {
+    function _payoutIsCompleted(uint256 _claimId) internal view returns (bool) {
         uint256 status;
         Claims claims = Claims(nxMaster.getLatestAddress("CL"));
-        (, status, , , ) = claims.getClaimbyIndex(claimId);
+        (, status, , , ) = claims.getClaimbyIndex(_claimId);
         return status == uint256(ClaimStatus.FinalClaimAssessorVoteAccepted)
             || status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
     }
 
     /**
      * @dev Send tokens after a successful redeem claim.
-     * @param coverCurrency bytes4 of the currency being used.
-     * @param sumAssured The amount of the currency to send.
+     * @param _coverCurrency bytes4 of the currency being used.
+     * @param _sumAssured The amount of the currency to send.
     **/
-    function _sendAssuredSum(bytes4 coverCurrency, uint256 sumAssured) internal {
+    function _sendAssuredSum(bytes4 _coverCurrency, uint256 _sumAssured) internal {
         uint256 claimReward;
 
-        if (coverCurrency == ethCurrency) {
+        if (_coverCurrency == ethCurrency) {
             
-            claimReward = sumAssured * (10 ** 18);
+            claimReward = _sumAssured * (10 ** 18);
             msg.sender.transfer(claimReward);
             
         } else {
             
-            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
+            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
             uint256 decimals = uint256(erc20.decimals());
         
-            claimReward = sumAssured * (10 ** decimals);
-            require(erc20.transfer(msg.sender, claimReward), "Transfer failed"); //TODO not necessary
+            claimReward = _sumAssured * (10 ** decimals);
+            require(erc20.transfer(msg.sender, claimReward), "Transfer failed");
         }
     }
     
@@ -372,11 +377,11 @@ contract arNFT is
     
     /**
      * @dev Get (some) cover details from the NXM contracts.
-     * @param coverId ID of the cover to get--same as our token ID.
+     * @param _coverId ID of the cover to get--same as our token ID.
      * @return Details about the token.
     **/
     function _getCover1 (
-        uint256 coverId
+        uint256 _coverId
     ) internal view returns (
         uint256 cid,
         address memberAddress,
@@ -386,16 +391,16 @@ contract arNFT is
         uint256 premiumNXM
     ) {
         QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
-        return quotationData.getCoverDetailsByCoverID1(coverId);
+        return quotationData.getCoverDetailsByCoverID1(_coverId);
     }
     
     /**
      * @dev Get the rest of the cover details from NXM contracts.
-     * @param coverId ID of the cover to get--same as our token ID.
+     * @param _coverId ID of the cover to get--same as our token ID.
      * @return 2nd set of details about the token.
     **/
     function _getCover2 (
-        uint256 coverId
+        uint256 _coverId
     ) internal view returns (
         uint256 cid,
         uint8 status,
@@ -404,17 +409,17 @@ contract arNFT is
         uint256 validUntil
     ) {
         QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
-        return quotationData.getCoverDetailsByCoverID2(coverId);
+        return quotationData.getCoverDetailsByCoverID2(_coverId);
     }
     
     /**
      * @dev Get current address of the desired currency.
-     * @param currency bytes4 currencyCode of the currency in question.
+     * @param _currency bytes4 currencyCode of the currency in question.
      * @return Address of the currency in question.
     **/
-    function _getCurrencyAssetAddress(bytes4 currency) internal view returns (address) {
+    function _getCurrencyAssetAddress(bytes4 _currency) internal view returns (address) {
         PoolData pd = PoolData(nxMaster.getLatestAddress("PD"));
-        return pd.getCurrencyAssetAddress(currency);
+        return pd.getCurrencyAssetAddress(_currency);
     }
     
     /**

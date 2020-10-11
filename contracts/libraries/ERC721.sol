@@ -13,7 +13,8 @@ contract ERC721 is Context, ERC165, IERC721 {
     bytes4 private constant _ERC721_RECEIVED = 0x150b7a02;
     mapping (uint256 => address) private _tokenOwner;
     mapping (uint256 => address) private _tokenApprovals;
-    
+    uint256 public totalSupply;
+
     /**
      * @dev Enumerable takes care of this.
     **/
@@ -95,6 +96,7 @@ contract ERC721 is Context, ERC165, IERC721 {
         require(!_exists(tokenId), "ERC721: token already minted");
 
         _tokenOwner[tokenId] = to;
+        totalSupply = totalSupply.add(1);
 
         emit Transfer(address(0), to, tokenId);
     }
@@ -104,6 +106,7 @@ contract ERC721 is Context, ERC165, IERC721 {
         _clearApproval(tokenId);
 
         _tokenOwner[tokenId] = address(0);
+        totalSupply = totalSupply.sub(1);
 
         emit Transfer(owner, address(0), tokenId);
     }
