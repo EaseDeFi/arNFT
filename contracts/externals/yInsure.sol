@@ -4,17 +4,10 @@
 
 pragma solidity ^0.5.0;
 
-import "./QuotationData.sol";
-import "./TokenData.sol";
-import "./Claims.sol";
-import "./ClaimsData.sol";
-import "./NXMToken.sol";
-import "./MemberRoles.sol";
-import "./Pool1.sol";
-import "./PoolData.sol";
+import "../externals/Externals.sol";
 import "../libraries/SafeMath.sol";
-import "./INXMMaster.sol";
 import "../interfaces/IERC20.sol";
+
 contract Context {
 
     constructor () internal { }

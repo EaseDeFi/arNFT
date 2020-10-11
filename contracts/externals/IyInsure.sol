@@ -14,7 +14,7 @@ interface IyInsure {
         uint claimId;
     }
     
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external;
     function submitClaim(uint256 tokenId) external;
     function tokens(uint256 tokenId) external returns (uint, bytes4, uint, uint, uint, uint, uint, uint, bool, uint);
 }
