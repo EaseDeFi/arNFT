@@ -578,11 +578,30 @@ describe('arInsure', function () {
           vrsdata[2],
           {from: coverHolder, value: coverDetails[1]}
         );
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.yInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
         let length = await this.yInsure.balanceOf(coverHolder);
         let tokenId = await this.yInsure.tokenOfOwnerByIndex(coverHolder, length - 1);
         await this.yInsure.approve(this.arInsure.address,tokenId, {from:coverHolder});
         await this.arInsure.swapYnft(tokenId,{from:coverHolder});
         const token = await this.yInsure.tokens(tokenId);
+        console.log(token);
         await this.arInsure.submitClaim(token.coverId, {from: coverHolder});
       });
       it('should update claimId when submitting denied claim', async function(){

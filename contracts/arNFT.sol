@@ -25,10 +25,6 @@ contract arInsure is
     // Used to route yNFT submits through their contract.
     mapping(uint256 => uint256) public swapIds;
 
-    // To check if swapped
-    // added to handle zero id ynft
-    mapping(uint256 => bool) public swapped;
-    
     //INXMMaster constant public nxMaster = INXMMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
     INXMMaster public nxMaster;
 
@@ -134,7 +130,7 @@ contract arInsure is
     function submitClaim(uint256 tokenId) external onlyTokenApprovedOrOwner(tokenId) {
 
         // If this was a yNFT swap, we must route the submit through them.
-        if (swapped[tokenId] == true) {
+        if (swapIds[tokenId] != 0) {
             _submitYnftClaim(tokenId);
             return;
         }
@@ -187,7 +183,6 @@ contract arInsure is
         _mint(msg.sender, coverId);
 
         swapIds[coverId] = _ynftTokenId;
-        swapped[coverId] = true;
         claimIds[coverId] = claimId;
     }
     
