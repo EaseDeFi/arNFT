@@ -28,9 +28,3 @@ This function does not need yNFT routing because of functionality in the Nexus M
 
 
 swapYnft: Simple functionality. transferFroms a yNFT token to arNFT, then mints a user a token using the same cover ID tracking for token ID as other mints. Batch just does this multiple times.
-
-approveToken: Used for buying cover. This function enables us to skip approving amounts for every cover buy.
-
-
-getToken: Gets all relevant Nexus Mutual cover information for a token.
-
