@@ -9,7 +9,6 @@ arNFT is built with an ERC721 standard that incorporates the base elements, ERC7
 # Nexus Mutual Interactions
 
 The core functionality in arNFT is the ability to buy cover, submit a claim, and redeem a claim through Nexus Mutual.
-<br>
 <br>    
 Basics: arNFT does not store data on its tokens. It stores normal ERC721 data (token IDs, which user they belong to, etc.), but the underlying data is all stored and fetched from the Nexus Mutual contracts themselves. In addition to this, the token ID stored is actually the cover ID on Nexus Mutual. Tokens will not be minted with incremental IDs. This is done in order to save on gas costs.
 <br>
