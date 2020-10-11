@@ -9,7 +9,7 @@ import "./interfaces/IERC20.sol";
 /** 
     @title Armor NFT
     @dev Armor NFT allows users to purchase Nexus Mutual cover and convert it into 
-         a transferable token. It also allows users to swap their Yearn yNFT or arNFT.
+         a transferable token. It also allows users to swap their Yearn yNFT for Armor arNFT.
     @author ArmorFi--Robert M.C. Forster, Taek Lee
 **/
 contract arNFT is
