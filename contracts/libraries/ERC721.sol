@@ -25,8 +25,6 @@ contract ERC721 is Context, ERC165, IERC721 {
         // register the supported interfaces to conform to ERC721 via ERC165
         _registerInterface(_INTERFACE_ID_ERC721);
     }
-
-    function balanceOf(address owner) public view returns(uint256);
     
     function ownerOf(uint256 tokenId) public view returns (address) {
         address owner = _tokenOwner[tokenId];

@@ -5,10 +5,13 @@ import "./libraries/Ownable.sol";
 import "./libraries/ReentrancyGuard.sol";
 import "./externals/Externals.sol";
 import "./interfaces/IERC20.sol";
-/**
- * @dev All commented out lines in yInsure were changed for the arNFT implementation.
+
+/** 
+    @title Armor NFT
+    @dev Armor NFT allows users to purchase Nexus Mutual cover and convert it into a transferable token.
+    @author ArmorFi--Robert M.C. Forster, Taek Lee
 **/
-contract arInsure is
+contract arNFT is
     ERC721Full("ArmorNFT", "arNFT"),
     Ownable,
     ReentrancyGuard {
@@ -17,7 +20,6 @@ contract arInsure is
     
     bytes4 internal constant ethCurrency = "ETH";
     
-    // arNFT claim IDs because we won't have a struct for this.
     // cover Id => claim Id
     mapping (uint256 => uint256) public claimIds;
     
@@ -25,11 +27,10 @@ contract arInsure is
     // Used to route yNFT submits through their contract.
     mapping(uint256 => uint256) public swapIds;
 
-    //INXMMaster constant public nxMaster = INXMMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
+    // Nexus Mutual master contract.
     INXMMaster public nxMaster;
 
     // yNFT contract that we're swapping tokens from.
-    //IyInsure constant public ynft = IyInsure(0x181Aea6936B407514ebFC0754A37704eB8d98F91);
     IyInsure public ynft;
     
     enum CoverStatus {
@@ -103,12 +104,12 @@ contract arInsure is
         bytes32 _r,
         bytes32 _s
     ) external payable {
-        uint coverPrice = coverDetails[1];
+        uint256 coverPrice = coverDetails[1];
 
         if (coverCurrency == "ETH") {
 
             require(msg.value == coverPrice, "Incorrect value sent");
-            
+        
         } else {
 
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
@@ -118,7 +119,7 @@ contract arInsure is
         
         }
         
-        uint coverId = _buyCover(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
+        uint256 coverId = _buyCover(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
 
         _mint(msg.sender, coverId);
     }
@@ -200,7 +201,6 @@ contract arInsure is
     
    /**
      * @dev Owner can approve the contract for any new ERC20 (so we don't need to in every buy).
-     *      Added with arNFT.
      * @param _tokenAddress Address of the ERC20 that we want approved.
     **/
     function approveToken(address _tokenAddress)
@@ -213,7 +213,7 @@ contract arInsure is
     }
     
     /**
-     * @dev Added by arNFT.
+     * @dev Getter for all token info from Nexus Mutual.
      * @param _tokenId of the token to get cover info for (also NXM cover ID).
      * @return All info from NXM about the cover.
     **/
@@ -235,13 +235,13 @@ contract arInsure is
     
     /**
      * @dev Get status of a cover claim.
-     * @param tokenId Id of the token we're checking.
+     * @param _tokenId Id of the token we're checking.
      * @return Status of the claim being made on the token.
     **/
-    function getCoverStatus(uint256 tokenId) external view returns (uint8 coverStatus, bool payoutCompleted) {//TODO test this
-        (, coverStatus, , , ) = _getCover2(tokenId);
+    function getCoverStatus(uint256 _tokenId) external view returns (uint8 coverStatus, bool payoutCompleted) {//TODO test this
+        (, coverStatus, , , ) = _getCover2(_tokenId);
         
-        payoutCompleted = _payoutIsCompleted(claimIds[tokenId]);
+        payoutCompleted = _payoutIsCompleted(claimIds[_tokenId]);
     }
     
     /**
@@ -274,9 +274,9 @@ contract arInsure is
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) internal returns (uint coverId) {
+    ) internal returns (uint256 coverId) {
     
-        uint coverPrice = coverDetails[1];
+        uint256 coverPrice = coverDetails[1];
         Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
 
         if (coverCurrency == "ETH") {
@@ -300,12 +300,12 @@ contract arInsure is
      * @param coverId on the NXM contract (same as our token ID).
      * @return claimId of the new claim.
     **/
-    function _submitClaim(uint coverId) internal returns (uint) {
+    function _submitClaim(uint256 coverId) internal returns (uint256) {
         Claims claims = Claims(nxMaster.getLatestAddress("CL"));
         claims.submitClaim(coverId);
     
         ClaimsData claimsData = ClaimsData(nxMaster.getLatestAddress("CD"));
-        uint claimId = claimsData.actualClaimLength() - 1;
+        uint256 claimId = claimsData.actualClaimLength() - 1;
         return claimId;
     }
     
@@ -328,21 +328,20 @@ contract arInsure is
      * @param claimId ID of the claim we are checking.
      * @return True if claim has been paid out, false if not.
     **/
-    function _payoutIsCompleted(uint claimId) internal view returns (bool) {
+    function _payoutIsCompleted(uint256 claimId) internal view returns (bool) {
         uint256 status;
         Claims claims = Claims(nxMaster.getLatestAddress("CL"));
         (, status, , , ) = claims.getClaimbyIndex(claimId);
-        return status == uint(ClaimStatus.FinalClaimAssessorVoteAccepted)
-            || status == uint(ClaimStatus.ClaimAcceptedPayoutDone);
+        return status == uint256(ClaimStatus.FinalClaimAssessorVoteAccepted)
+            || status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
     }
 
     /**
      * @dev Send tokens after a successful redeem claim.
      * @param coverCurrency bytes4 of the currency being used.
      * @param sumAssured The amount of the currency to send.
-     * @notice I think this has no decimals?
     **/
-    function _sendAssuredSum(bytes4 coverCurrency, uint sumAssured) internal {
+    function _sendAssuredSum(bytes4 coverCurrency, uint256 sumAssured) internal {
         uint256 claimReward;
 
         if (coverCurrency == ethCurrency) {
@@ -376,11 +375,10 @@ contract arInsure is
      * @param coverId ID of the cover to get--same as our token ID.
      * @return Details about the token.
     **/
-    //function getCover(
     function _getCover1 (
-        uint coverId
+        uint256 coverId
     ) internal view returns (
-        uint cid,
+        uint256 cid,
         address memberAddress,
         address scAddress,
         bytes4 currencyCode,
@@ -392,18 +390,18 @@ contract arInsure is
     }
     
     /**
-     * @dev All new. Get the rest of the cover details from NXM contracts.
+     * @dev Get the rest of the cover details from NXM contracts.
      * @param coverId ID of the cover to get--same as our token ID.
      * @return 2nd set of details about the token.
     **/
     function _getCover2 (
-        uint coverId
+        uint256 coverId
     ) internal view returns (
-        uint cid,
+        uint256 cid,
         uint8 status,
-        uint sumAssured,
+        uint256 sumAssured,
         uint16 coverPeriod,
-        uint validUntil
+        uint256 validUntil
     ) {
         QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID2(coverId);
@@ -430,11 +428,16 @@ contract arInsure is
     /**
      * @dev Get the amount of time that a token can still be redeemed after it expires.
     **/
-    function _getLockTokenTimeAfterCoverExpiry() internal returns (uint) {
+    function _getLockTokenTimeAfterCoverExpiry() internal returns (uint256) {
         TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
         return tokenData.lockTokenTimeAfterCoverExp();
     }
     
+    /**
+     * @dev Approve an address to spend NXM tokens from the contract.
+     * @param _spender Address to be approved.
+     * @param _value The amount of NXM to be approved.
+    **/
     function nxmTokenApprove(address _spender, uint256 _value) public onlyOwner {
         IERC20 nxmToken = IERC20(_getTokenAddress());
         nxmToken.approve(_spender, _value);
