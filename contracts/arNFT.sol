@@ -21,9 +21,13 @@ contract arInsure is
     // cover Id => claim Id
     mapping (uint256 => uint256) public claimIds;
     
-    // cover ID => yNFT token id. Will be 0 if it was not a swap.
+    // cover ID => yNFT token id.
     // Used to route yNFT submits through their contract.
     mapping(uint256 => uint256) public swapIds;
+
+    // To check if swapped
+    // added to handle zero id ynft
+    mapping(uint256 => bool) public swapped;
     
     //INXMMaster constant public nxMaster = INXMMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
     INXMMaster public nxMaster;
@@ -130,20 +134,15 @@ contract arInsure is
     function submitClaim(uint256 tokenId) external onlyTokenApprovedOrOwner(tokenId) {
 
         // If this was a yNFT swap, we must route the submit through them.
-        if (swapIds[tokenId] != 0) {
-            
+        if (swapped[tokenId] == true) {
             _submitYnftClaim(tokenId);
             return;
-
         }
         
         (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(tokenId);
-            
         if (claimIds[tokenId] > 0) {
-            
             require(coverStatus == uint8(CoverStatus.ClaimDenied),
             "Can submit another claim only if the previous one was denied.");
-            
         }
         
         // A submission until it has expired + a defined amount of time.
@@ -180,13 +179,15 @@ contract arInsure is
     function swapYnft(uint256 _ynftTokenId)
       public
     {
-        require(ynft.transferFrom(msg.sender, address(this), _ynftTokenId), "yNFT was not successfully transferred.");
+        //this does not returns bool
+        ynft.transferFrom(msg.sender, address(this), _ynftTokenId);
         
         (uint256 coverId, uint256 claimId) = _getCoverAndClaim(_ynftTokenId);
 
         _mint(msg.sender, coverId);
 
         swapIds[coverId] = _ynftTokenId;
+        swapped[coverId] = true;
         claimIds[coverId] = claimId;
     }
     
@@ -198,9 +199,7 @@ contract arInsure is
       external
     {
         for (uint256 i = 0; i < _tokenIds.length; i++) {
-
             swapYnft(_tokenIds[i]);
-
         }
     }
     
@@ -363,7 +362,6 @@ contract arInsure is
         
             claimReward = sumAssured * (10 ** decimals);
             require(erc20.transfer(msg.sender, claimReward), "Transfer failed"); //TODO not necessary
-        
         }
     }
     
