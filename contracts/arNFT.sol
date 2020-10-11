@@ -175,15 +175,18 @@ contract arInsure is
     
     /**
      * @dev External swap yNFT token for our own. Simple process because we do not need to create cover.
-     * @param _tokenId The ID of the token on yNFT's contract.
+     * @param _ynftTokenId The ID of the token on yNFT's contract.
     **/
-    function swapYnft(uint256 _tokenId)
+    function swapYnft(uint256 _ynftTokenId)
       public
     {
-        require(ynft.transferFrom(msg.sender, address(this), _tokenId), "yNFT was not successfully transferred.");
+        require(ynft.transferFrom(msg.sender, address(this), _ynftTokenId), "yNFT was not successfully transferred.");
         
-        (uint256 coverId, /*claimId*/) = _getCoverAndClaim(_tokenId);
+        (uint256 coverId, /*claimId*/) = _getCoverAndClaim(_ynftTokenId);
+
         _mint(msg.sender, coverId);
+
+        swapIds[coverId] = _ynftTokenId;
     }
     
     /**
