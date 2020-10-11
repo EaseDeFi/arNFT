@@ -87,7 +87,13 @@ describe('arInsure', function () {
     before( async function (){
       await this.tk.approve(this.mr.address, UNLIMITED_ALLOWANCE, {from: member5});
       await this.mr.switchMembership(this.arInsure.address,{from:member5});
+      await this.mr.payJoiningFee(member5, { from: member5, value: fee });
+      await this.mr.kycVerdict(member5, true);
+      await this.tk.approve(this.tc.address, UNLIMITED_ALLOWANCE, { from: member5 });
+      await this.tk.transfer(member5, initialMemberFunds);
+      await this.mr.switchMembership(this.yInsure.address,{from:member5});
       await this.arInsure.nxmTokenApprove(this.tc.address, UNLIMITED_ALLOWANCE, {from:owner});
+      await this.yInsure.nxmTokenApprove(this.tc.address, UNLIMITED_ALLOWANCE, {from:owner});
     });
 
     const currency = hex('ETH');
@@ -243,6 +249,81 @@ describe('arInsure', function () {
       });
     });
 
+    describe('#swapYnft()', async function () {
+      let initialCurrencyAssetVarMin;
+      let coverID;
+      let coverCurr;
+
+      before(async function(){
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        var vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.p1.makeCoverBegin(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        var vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex(currency),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.p1.makeCoverBegin(
+          smartConAdd,
+          toHex(currency),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.yInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
+      });
+
+      it.only('should be able to swap yNFT', async function() {
+        const token = await this.yInsure.tokens(0);
+        await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
+        await this.arInsure.swapYnft(0, {from:coverHolder});
+      });
+
+      it.only('should fail if msg.sender is not cover holder', async function(){
+        const token = await this.yInsure.tokens(0);
+        await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
+        await expectRevert.unspecified(this.arInsure.swapYnft(0, {from:member4}));
+      });
+      
+    });
     describe('#submitClaim()', async function () {
       before(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);

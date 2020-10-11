@@ -182,11 +182,12 @@ contract arInsure is
     {
         require(ynft.transferFrom(msg.sender, address(this), _ynftTokenId), "yNFT was not successfully transferred.");
         
-        (uint256 coverId, /*claimId*/) = _getCoverAndClaim(_ynftTokenId);
+        (uint256 coverId, uint256 claimId) = _getCoverAndClaim(_ynftTokenId);
 
         _mint(msg.sender, coverId);
 
         swapIds[coverId] = _ynftTokenId;
+        claimIds[coverId] = claimId;
     }
     
     /**
@@ -358,7 +359,7 @@ contract arInsure is
         } else {
             
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(coverCurrency));
-            uint256 decimals = uint256(erc20.decimals())
+            uint256 decimals = uint256(erc20.decimals());
         
             claimReward = sumAssured * (10 ** decimals);
             require(erc20.transfer(msg.sender, claimReward), "Transfer failed"); //TODO not necessary
