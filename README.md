@@ -1,8 +1,8 @@
-##arNFT
+#arNFT
 
 arNFT is a non-fungible token built on top of the Nexus Mutual protocol. It enables users to create ERC721 tokens out of cover they purchase through Nexus Mutual. The arNFT contract itself is an ERC721 token with functionality to buy covers, submit claims, and redeem accepted claims from Nexus Mutual. It is based on Yearn’s yNFT and allows users to swap their yNFT tokens for arNFT tokens. It is crucial that an auditor tests the interactions between arNFT and yNFT and arNFT and Nexus Mutual.
 
-#ERC721
+ERC721
 
 arNFT is built with an ERC721 standard that incorporates the base elements, ERC721Enumerable functionality, and ERC721Metadata functionality. The only change made to these contracts (from yNFT and base contracts) is that the total supply counter was removed in exchange for total supply being determined by the allTokens array in ERC721Enumerable (through allTokens.length).
 
