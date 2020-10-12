@@ -148,7 +148,7 @@ contract arNFT is
         }
         
         // A submission until it has expired + a defined amount of time.
-        require(validUntil + _getLockTokenTimeAfterCoverExpiry() > block.timestamp, "Token is expired");
+        require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired");
         
         uint256 claimId = _submitClaim(coverId);
         claimIds[_tokenId] = claimId;
