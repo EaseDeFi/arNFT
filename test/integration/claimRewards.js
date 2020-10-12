@@ -531,11 +531,47 @@ describe('arInsure', function () {
       });
 
       it('should fail if msg.sender is not token owner', async function(){
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.arInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
         let length = await this.arInsure.balanceOf(coverHolder);
         let tokenId = await this.arInsure.tokenOfOwnerByIndex(coverHolder, length - 1);
         await expectRevert.unspecified(this.arInsure.submitClaim(tokenId, {from:member4}));
       });
       it('should fail if already submitted and not denied', async function(){
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.arInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
         let length = await this.arInsure.balanceOf(coverHolder);
         let tokenId = await this.arInsure.tokenOfOwnerByIndex(coverHolder, length - 1);
         await this.arInsure.submitClaim(tokenId, {from:coverHolder});
@@ -605,6 +641,42 @@ describe('arInsure', function () {
         await this.arInsure.submitClaim(token.coverId, {from: coverHolder});
       });
       it('should update claimId when submitting denied claim', async function(){
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.yInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('ETH'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.yInsure.buyCover(
+          smartConAdd,
+          toHex('ETH'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder, value: coverDetails[1]}
+        );
         let length = await this.arInsure.balanceOf(coverHolder);
         let tokenId = await this.arInsure.tokenOfOwnerByIndex(coverHolder, length - 2);
         await this.arInsure.submitClaim(tokenId, {from: coverHolder});

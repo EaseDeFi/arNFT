@@ -32,7 +32,7 @@ const ProposalCategory = contract.fromArtifact('ProposalCategoryMock');
 const MemberRoles = contract.fromArtifact('MemberRoles');
 const PooledStaking = contract.fromArtifact('PooledStaking');
 const MintableERC20 = contract.fromArtifact('MintableERC20');
-const ARInsure = contract.fromArtifact('arInsure');
+const ARInsure = contract.fromArtifact('arNFT');
 const YInsure = contract.fromArtifact('yInsure');
 
 const QE = '0x51042c4d8936a7764d18370a6a0762b860bb8e07';
