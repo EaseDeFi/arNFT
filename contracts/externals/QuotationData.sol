@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-interface QuotationData {
+interface IQuotationData {
 
     enum HCIDStatus { NA, kycPending, kycPass, kycFailedOrRefunded, kycPassNoCover }
     enum CoverStatus { Active, ClaimAccepted, ClaimDenied, CoverExpired, ClaimSubmitted, Requested }

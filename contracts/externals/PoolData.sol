@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-interface PoolData {
+interface IPoolData {
 
     struct ApiId {
         bytes4 typeOf;

@@ -1,11 +1,10 @@
-const { accounts, contract } = require('@openzeppelin/test-environment');
 
 require('@openzeppelin/test-helpers');
 const { shouldBehaveLikeOwnable } = require('./Ownable.behavior');
 
-const Ownable = contract.fromArtifact('OwnableMock');
+const Ownable = artifacts.require('OwnableMock');
 
-describe('Ownable', function () {
+contract('Ownable', function (accounts) {
   const [ owner, ...otherAccounts ] = accounts;
 
   beforeEach(async function () {

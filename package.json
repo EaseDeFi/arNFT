@@ -1,41 +1,46 @@
 {
-  "name": "staking-incentives",
+  "name": "mojito",
   "version": "1.0.0",
-  "description": "",
-  "main": "networks.js",
+  "description": "audit single repository",
+  "main": "index.js",
   "scripts": {
-    "compile": "oz compile",
-    "compile-nxm": "(cd nexusmutual && npx truffle compile)",
-    "compile-all": "npm run compile && npm run compile-nxm && npm run nxm-copy-artifacts",
-    "nxm-copy-artifacts": "cp nexusmutual/build/contracts/*.json build/contracts/",
-    "test-integration": "mocha --exit test/integration",
-    "test-unit": "mocha --exit test/unit",
-    "test": "mocha --exit test/"
+    "compile": "npx truffle compile",
+    "coverage": "npx truffle run coverage",
+    "docs": "scripts/docs.sh",
+    "lint": "npm run lint:js && npm run lint:sol",
+    "lint:js": "eslint '*/**/*.{js,ts}' --quiet --fix",
+    "lint:sol": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
+    "prettier": "prettier --write **/{**,.}/*.sol",
+    "benchmark": "bsol --sol-dir contracts/",
+    "test": "scripts/test.sh",
+    "analyze": "slither ./contracts",
+    "version": "scripts/version.sh"
   },
-  "author": "",
+  "authors": [
+    "taek lee <leekt216@gmail.com>",
+    "yoonsung"
+  ],
   "license": "ISC",
-  "dependencies": {
-    "@openzeppelin/contracts": "2.5.1",
-    "ganache-cli": "^6.11.0",
-    "solidity-coverage": "^0.7.11"
-  },
   "devDependencies": {
-    "@openzeppelin/cli": "^2.8.2",
-    "@openzeppelin/contract-loader": "^0.6.1",
-    "@openzeppelin/test-environment": "^0.1.5",
-    "@openzeppelin/test-helpers": "^0.5.6",
-    "@truffle/hdwallet-provider": "^1.0.43",
+    "@openzeppelin/test-helpers": "^0.5.3",
     "chai": "^4.2.0",
-    "dotenv": "^8.2.0",
-    "eslint": "^7.4.0",
-    "eslint-config-semistandard": "^15.0.1",
-    "eslint-config-standard": "^13.0.1",
-    "eslint-plugin-import": "^2.22.0",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "mocha": "^8.0.1",
-    "node-fetch": "^2.6.0",
-    "nyc": "^15.1.0"
+    "coveralls": "^3.0.7",
+    "eslint": "^6.5.1",
+    "eslint-config-prettier": "^6.4.0",
+    "eslint-plugin-prettier": "^3.1.1",
+    "ganache-cli": "^6.9.1",
+    "prettier": "^1.19.1",
+    "prettier-plugin-solidity": "^1.0.0-alpha.34",
+    "solhint": "^2.3.0",
+    "solidity-coverage": "^0.7.4",
+    "truffle": "^5.1.21",
+    "truffle-hdwallet-provider": "^1.0.17",
+    "web3": "^1.2.6",
+    "leafleth": "https://github.com/leekt216/leafleth"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^2.5.0",
+    "ethereumjs-abi": "^0.6.8",
+    "truffle-hdwallet-provider-klaytn": "^1.0.13-a"
   }
 }

@@ -211,7 +211,7 @@ contract arNFT is
     function approveToken(address _tokenAddress)
       external
     {
-        Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+        IPool1 pool1 = IPool1(nxMaster.getLatestAddress("P1"));
         address payable pool1Address = address(uint160(address(pool1)));
         IERC20 erc20 = IERC20(_tokenAddress);
         erc20.approve( pool1Address, uint256(-1) );
@@ -262,9 +262,9 @@ contract arNFT is
      * @param _newMembership Membership address to change to.
     **/
     function switchMembership(address _newMembership) external onlyOwner {
-        NXMToken nxmToken = NXMToken(nxMaster.tokenAddress());
+        INXMToken nxmToken = INXMToken(nxMaster.tokenAddress());
         nxmToken.approve(getMemberRoles(),uint(-1));
-        MemberRoles(getMemberRoles()).switchMembership(_newMembership);
+        IMemberRoles(getMemberRoles()).switchMembership(_newMembership);
     }
     
     /**
@@ -282,7 +282,7 @@ contract arNFT is
     ) internal returns (uint256 coverId) {
     
         uint256 coverPrice = _coverDetails[1];
-        Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+        IPool1 pool1 = IPool1(nxMaster.getLatestAddress("P1"));
 
         if (_coverCurrency == "ETH") {
 
@@ -294,7 +294,7 @@ contract arNFT is
 
         }
     
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
 
         // *assumes* the newly created claim is appended at the end of the list covers
         coverId = quotationData.getCoverLength().sub(1);
@@ -306,10 +306,10 @@ contract arNFT is
      * @return claimId of the new claim.
     **/
     function _submitClaim(uint256 _coverId) internal returns (uint256) {
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         claims.submitClaim(_coverId);
     
-        ClaimsData claimsData = ClaimsData(nxMaster.getLatestAddress("CD"));
+        IClaimsData claimsData = IClaimsData(nxMaster.getLatestAddress("CD"));
         uint256 claimId = claimsData.actualClaimLength() - 1;
         return claimId;
     }
@@ -335,7 +335,7 @@ contract arNFT is
     **/
     function _payoutIsCompleted(uint256 _claimId) internal view returns (bool) {
         uint256 status;
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         (, status, , , ) = claims.getClaimbyIndex(_claimId);
         return status == uint256(ClaimStatus.FinalClaimAssessorVoteAccepted)
             || status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
@@ -390,7 +390,7 @@ contract arNFT is
         uint256 sumAssured,
         uint256 premiumNXM
     ) {
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID1(_coverId);
     }
     
@@ -408,7 +408,7 @@ contract arNFT is
         uint16 coverPeriod,
         uint256 validUntil
     ) {
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID2(_coverId);
     }
     
@@ -418,7 +418,7 @@ contract arNFT is
      * @return Address of the currency in question.
     **/
     function _getCurrencyAssetAddress(bytes4 _currency) internal view returns (address) {
-        PoolData pd = PoolData(nxMaster.getLatestAddress("PD"));
+        IPoolData pd = IPoolData(nxMaster.getLatestAddress("PD"));
         return pd.getCurrencyAssetAddress(_currency);
     }
     
@@ -434,7 +434,7 @@ contract arNFT is
      * @dev Get the amount of time that a token can still be redeemed after it expires.
     **/
     function _getLockTokenTimeAfterCoverExpiry() internal returns (uint256) {
-        TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
+        ITokenData tokenData = ITokenData(nxMaster.getLatestAddress("TD"));
         return tokenData.lockTokenTimeAfterCoverExp();
     }
     

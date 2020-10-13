@@ -1,4 +1,3 @@
-const { accounts, defaultSender, web3 } = require('@openzeppelin/test-environment');
 const { balance, expectRevert, ether, send, time } = require('@openzeppelin/test-helpers');
 const getQuoteValues = require('../../nexusmutual/test/utils/getQuote.js').getQuoteValues;
 const {increaseTimeTo, duration, latestTime} = require('../../nexusmutual/test/utils/increaseTime');
@@ -18,11 +17,12 @@ const rewardRateScale = new BN('10').pow(new BN('18'));
 const smartConAdd = '0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf';
 const coverPeriod = 61;
 const coverDetails = [1, '3362445813369838', '744892736679184', '7972408607'];
+const Ownable = artifacts.require('OwnableMock');
 
-describe('arInsure', function () {
+contract.only('arInsure', function (accounts) {
 
-  this.timeout(10000000);
-  const owner = defaultSender;
+//  this.timeout(10000000);
+  let owner;
   const [
     member1,
     member2,
@@ -68,6 +68,8 @@ describe('arInsure', function () {
     members.push(coverHolder);
 
     for (const member of members) {
+      console.log(member);
+      console.log(mr.address);
       await mr.payJoiningFee(member, { from: member, value: fee });
       await mr.kycVerdict(member, true);
       await tk.approve(tc.address, UNLIMITED_ALLOWANCE, { from: member });
@@ -79,12 +81,17 @@ describe('arInsure', function () {
 
   }
 
+  beforeEach(async function(){
+    const ownable = await Ownable.new();
+    owner = await ownable.owner();
+  });
+
 
   describe('integration test', function () {
 
-    before(setup);
-    before(initMembers);
-    before( async function (){
+    beforeEach( async function (){
+      await setup();
+      await initMembers();
       await this.tk.approve(this.mr.address, UNLIMITED_ALLOWANCE, {from: member5});
       await this.mr.switchMembership(this.arInsure.address,{from:member5});
       await this.mr.payJoiningFee(member5, { from: member5, value: fee });
