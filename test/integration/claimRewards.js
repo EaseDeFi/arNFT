@@ -265,7 +265,7 @@ contract('arInsure', function (accounts) {
       let coverID;
       let coverCurr;
 
-      beforeEach(async function(){
+      before(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,
@@ -322,7 +322,14 @@ contract('arInsure', function (accounts) {
         );
       });
 
+      it('should fail if not activated', async function(){
+        const token = await this.yInsure.tokens(0);
+        await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
+        await expectRevert(this.arInsure.swapYnft(0, {from:coverHolder}),"Swap is not activated yet");
+      });
+
       it('should be able to swap yNFT', async function() {
+        await this.arInsure.activateSwap();
         const token = await this.yInsure.tokens(0);
         await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
         await this.arInsure.swapYnft(0, {from:coverHolder});
