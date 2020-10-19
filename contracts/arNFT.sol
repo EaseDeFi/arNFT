@@ -11,7 +11,7 @@ import "./interfaces/IERC20.sol";
     @title Armor NFT
     @dev Armor NFT allows users to purchase Nexus Mutual cover and convert it into 
          a transferable token. It also allows users to swap their Yearn yNFT for Armor arNFT.
-    @author ArmorFi--Robert M.C. Forster, Taek Lee
+    @author ArmorFi -- Robert M.C. Forster, Taek Lee
 **/
 contract arNFT is
     ERC721Full("ArmorNFT", "arNFT"),
@@ -148,6 +148,9 @@ contract arNFT is
         
         uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
         _mint(msg.sender, coverId);
+        
+        emit BuyCover(coverId, msg.sender, _coverCurrency, _coverDetails[0], _coverDetails[1], 
+                      _coverDetails[2], _coverDetails[3], _coverDetails[4], _coverPeriod);
     }
     
     /**
@@ -171,6 +174,8 @@ contract arNFT is
         require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired");
         uint256 claimId = _submitClaim(coverId);
         claimIds[_tokenId] = claimId;
+        
+        emit ClaimSubmitted(coverId, claimId);
     }
     
     /**
@@ -189,6 +194,7 @@ contract arNFT is
         // this will prevent duplicate redeem 
         _burn(_tokenId);
         _sendAssuredSum(currencyCode, sumAssured);
+        
         emit ClaimRedeemed(msg.sender, currencyCode, sumAssured);
     }
     
@@ -217,6 +223,8 @@ contract arNFT is
 
         swapIds[coverId] = _ynftTokenId;
         claimIds[coverId] = claimId;
+        
+        emit SwappedYInsure(_ynftTokenId, coverId);
     }
     
     /**
