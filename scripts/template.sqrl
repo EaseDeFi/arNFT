@@ -1,0 +1,138 @@
+# <span id="{{contract.name}}"></span> {{contract.name}}
+
+> {{if(options.contract.author)}}👤 {{contract.author}}{{/if}}
+
+{{if(options.contract.title)}}
+
+```
+{{contract.title}}
+
+```
+
+{{/if}}
+
+{{if(options.contract.notice)}}
+
+### 📋 Notice
+
+{{contract.notice}}
+{{/if}}
+
+
+{{if(options.contract.details)}}
+
+### 🔎 Details
+
+{{contract.details}}
+{{/if}}
+
+{{if(Object.keys(options.contract.networks).length > 0)}}
+
+### 📡 Networks
+
+The contract has been deployed to:
+{{foreach(options.contract.networks)}}
+* **Network {{@key}}**: `{{@this.address}}`
+{{/foreach}}
+
+{{/if}}
+
+## Contents
+
+{{if(Object.keys(options.events).length > 0)}}
+
+- [Events](#{{contract.name}}--Events)
+
+{{foreach(options.events)}}
+
+  - [{{@key}}](#{{contract.name}}--event--{{@key}})
+
+{{/foreach}}
+
+{{/if}}
+
+- [Functions](#{{contract.name}}--Functions)
+
+{{foreach(options.methods)}}
+
+  - [{{@this.signature}}](#{{contract.name}}--function--{{@this.signature}})
+
+{{/foreach}}
+
+{{if(Object.keys(options.events).length > 0)}}
+
+## 🦄Events <a name="{{contract.name}}--Events"></a>
+
+{{foreach(options.events)}}
+
+<details><summary><strong>{{@key}} <a name="{{contract.name}}--event--{{@key}}"></a></strong></summary>
+<p>
+
+| Name | Indexed | Type |
+|:-:|:-:|:-:|
+{{each(@this.inputs)}}
+| {{@this.name}} | `{{@this.indexed}}` | `{{@this.type}}` |
+{{/each}}
+
+</p>
+
+</details>
+
+{{/foreach}}
+
+{{/if}}
+
+## 🚀Functions <a name="{{contract.name}}--Functions"></a>
+<dl>
+{{foreach(options.methods)}}
+<dt> <h3> {{@this.signature}} <a name="{{contract.name}}--function--{{@this.signature}}"></a> </h3> </dt>
+<dd>
+{{if(@this.notice)}}
+
+>{{@this.notice}}
+
+{{/if}}
+
+{{if(@this.details)}}🔨`{{@this.details}}` | {{/if}}{{if(@this.stateMutability)}} 👀 `{{@this.stateMutability}}`{{/if}}{{if(@this.payable)}} | 💰 Payable{{/if}}{{if(@this.author)}} | 👤 {{@this.author}} {{/if}}
+
+{{if(@this.params)}}
+
+#### ⚙️ Parameters
+
+| Name | Type | Description |
+|:-:|:-:| - |
+{{each(@this.params)}}
+| {{@this.name}} | `{{@this.type}}` | {{@this.description}} |
+{{/each}}
+
+{{/if}}
+
+{{if(@this.return !== undefined || @this.outputs.length > 0)}}
+#### → Returns
+{{if(@this.returns)}}
+{{if(@this.outputs.length > 0)}}
+| Name | Type | Description |
+|:-:|:-:| - |
+{{each(@this.outputs)}}
+| {{if(@this.name !== "")}} {{@this.name}} {{#else}} Not specified {{/if}} | `{{@this.type}}` | {{@this.description}} |
+{{/each}}
+{{/if}}
+{{#else}}
+{{if(@this.outputs.length > 0)}}
+| Name | Type |
+|:-:|:-:|
+{{each(@this.outputs)}}
+| {{if(@this.name !== "")}} {{@this.name}} {{#else}} Not specified {{/if}} | `{{@this.type}}` |
+{{/each}}
+{{/if}}
+{{/if}}
+
+{{if(@this.return)}}
+{{@this.return}}
+{{/if}}
+
+{{/if}}
+
+</dd>
+{{/foreach}}
+</dl>

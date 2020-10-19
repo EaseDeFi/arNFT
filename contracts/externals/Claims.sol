@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-interface Claims {
+interface IClaims {
     function getClaimbyIndex(uint _claimId) external view returns (
         uint claimId,
         uint status,

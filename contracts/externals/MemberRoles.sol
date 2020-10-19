@@ -1,5 +1,5 @@
 pragma solidity ^0.5.0;
 
-interface MemberRoles {
+interface IMemberRoles {
     function switchMembership(address) external;
 }

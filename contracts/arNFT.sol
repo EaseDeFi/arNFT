@@ -3,6 +3,7 @@ pragma solidity ^0.5.0;
 import "./libraries/ERC721Full.sol";
 import "./libraries/Ownable.sol";
 import "./libraries/ReentrancyGuard.sol";
+import "./libraries/SafeERC20.sol";
 import "./externals/Externals.sol";
 import "./interfaces/IERC20.sol";
 
@@ -18,15 +19,21 @@ contract arNFT is
     ReentrancyGuard {
     
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
     
     bytes4 internal constant ethCurrency = "ETH";
     
     // cover Id => claim Id
     mapping (uint256 => uint256) public claimIds;
     
-    // cover ID => yNFT token id.
+    // cover Id => yNFT token Id.
     // Used to route yNFT submits through their contract.
+    // if zero, it is not swapped from yInsure
     mapping(uint256 => uint256) public swapIds;
+
+    // indicates if swap for yInsure is available
+    // cannot go back to false
+    bool public swapActivated;
 
     // Nexus Mutual master contract.
     INXMMaster public nxMaster;
@@ -60,12 +67,35 @@ contract arNFT is
         ClaimAcceptedNoPayout, // 13
         ClaimAcceptedPayoutDone // 14
     }
+
+    event SwappedYInsure (
+        uint256 indexed yInsureTokenId,
+        uint256 indexed coverId
+    );
+
+    event ClaimSubmitted (
+        uint256 indexed coverId,
+        uint256 indexed claimId
+    );
     
     event ClaimRedeemed (
-        address receiver,
-        uint value,
-        bytes4 currency
+        address indexed receiver,
+        bytes4 indexed currency,
+        uint256 value
     );
+
+    event BuyCover (
+        uint indexed coverId,
+        address indexed buyer,
+        bytes4 indexed currency,
+        uint256 coverAmount,
+        uint256 coverPrice,
+        uint256 coverPriceNXM,
+        uint256 expireTime,
+        uint256 generationTime,
+        uint16 coverPeriod
+    );
+
     
     /**
      * @dev Make sure only the owner of a token or someone approved to transfer it can call.
@@ -108,20 +138,15 @@ contract arNFT is
         uint256 coverPrice = _coverDetails[1];
 
         if (_coverCurrency == "ETH") {
-
             require(msg.value == coverPrice, "Incorrect value sent");
-        
         } else {
-
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
 
             require(msg.value == 0, "Eth not required when buying with erc20");
-            require(erc20.transferFrom(msg.sender, address(this), coverPrice), "Transfer failed");
-        
+            erc20.safeTransferFrom(msg.sender, address(this), coverPrice);
         }
         
         uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
-
         _mint(msg.sender, coverId);
     }
     
@@ -130,26 +155,20 @@ contract arNFT is
      * @param _tokenId ID of the token a claim is being submitted for.
     **/
     function submitClaim(uint256 _tokenId) external onlyTokenApprovedOrOwner(_tokenId) {
-
         // If this was a yNFT swap, we must route the submit through them.
         if (swapIds[_tokenId] != 0) {
-
             _submitYnftClaim(_tokenId);
             return;
-
         }
         
         (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(_tokenId);
         if (claimIds[_tokenId] > 0) {
-
             require(coverStatus == uint8(CoverStatus.ClaimDenied),
             "Can submit another claim only if the previous one was denied.");
-
         }
         
         // A submission until it has expired + a defined amount of time.
         require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired");
-        
         uint256 claimId = _submitClaim(coverId);
         claimIds[_tokenId] = claimId;
     }
@@ -166,14 +185,21 @@ contract arNFT is
         
         require(coverStatus == uint8(CoverStatus.ClaimAccepted), "Claim is not accepted");
         require(_payoutIsCompleted(claimIds[_tokenId]), "Claim accepted but payout not completed");
-        
+       
+        // this will prevent duplicate redeem 
         _burn(_tokenId);
-        
         _sendAssuredSum(currencyCode, sumAssured);
-        
-        emit ClaimRedeemed(msg.sender, sumAssured, currencyCode);
+        emit ClaimRedeemed(msg.sender, currencyCode, sumAssured);
     }
     
+    function activateSwap()
+      public
+      onlyOwner
+    {
+        require(!swapActivated, "Already Activated");
+        swapActivated = true;
+    }
+
     /**
      * @dev External swap yNFT token for our own. Simple process because we do not need to create cover.
      * @param _ynftTokenId The ID of the token on yNFT's contract.
@@ -181,6 +207,7 @@ contract arNFT is
     function swapYnft(uint256 _ynftTokenId)
       public
     {
+        require(swapActivated, "Swap is not activated yet");
         //this does not returns bool
         ynft.transferFrom(msg.sender, address(this), _ynftTokenId);
         
@@ -211,10 +238,10 @@ contract arNFT is
     function approveToken(address _tokenAddress)
       external
     {
-        Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+        IPool1 pool1 = IPool1(nxMaster.getLatestAddress("P1"));
         address payable pool1Address = address(uint160(address(pool1)));
         IERC20 erc20 = IERC20(_tokenAddress);
-        erc20.approve( pool1Address, uint256(-1) );
+        erc20.safeApprove( pool1Address, uint256(-1) );
     }
     
     /**
@@ -245,7 +272,6 @@ contract arNFT is
     **/
     function getCoverStatus(uint256 _tokenId) external view returns (uint8 coverStatus, bool payoutCompleted) {
         (, coverStatus, , , ) = _getCover2(_tokenId);
-        
         payoutCompleted = _payoutIsCompleted(claimIds[_tokenId]);
     }
     
@@ -262,9 +288,9 @@ contract arNFT is
      * @param _newMembership Membership address to change to.
     **/
     function switchMembership(address _newMembership) external onlyOwner {
-        NXMToken nxmToken = NXMToken(nxMaster.tokenAddress());
-        nxmToken.approve(getMemberRoles(),uint(-1));
-        MemberRoles(getMemberRoles()).switchMembership(_newMembership);
+        IERC20 nxmToken = IERC20(nxMaster.tokenAddress());
+        nxmToken.safeApprove(getMemberRoles(),uint(-1));
+        IMemberRoles(getMemberRoles()).switchMembership(_newMembership);
     }
     
     /**
@@ -282,20 +308,15 @@ contract arNFT is
     ) internal returns (uint256 coverId) {
     
         uint256 coverPrice = _coverDetails[1];
-        Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+        IPool1 pool1 = IPool1(nxMaster.getLatestAddress("P1"));
 
         if (_coverCurrency == "ETH") {
-
             pool1.makeCoverBegin.value(coverPrice)(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
-
         } else {
-
             pool1.makeCoverUsingCA(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
-
         }
     
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
-
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         // *assumes* the newly created claim is appended at the end of the list covers
         coverId = quotationData.getCoverLength().sub(1);
     }
@@ -306,10 +327,10 @@ contract arNFT is
      * @return claimId of the new claim.
     **/
     function _submitClaim(uint256 _coverId) internal returns (uint256) {
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         claims.submitClaim(_coverId);
     
-        ClaimsData claimsData = ClaimsData(nxMaster.getLatestAddress("CD"));
+        IClaimsData claimsData = IClaimsData(nxMaster.getLatestAddress("CD"));
         uint256 claimId = claimsData.actualClaimLength() - 1;
         return claimId;
     }
@@ -335,7 +356,7 @@ contract arNFT is
     **/
     function _payoutIsCompleted(uint256 _claimId) internal view returns (bool) {
         uint256 status;
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         (, status, , , ) = claims.getClaimbyIndex(_claimId);
         return status == uint256(ClaimStatus.FinalClaimAssessorVoteAccepted)
             || status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
@@ -350,17 +371,14 @@ contract arNFT is
         uint256 claimReward;
 
         if (_coverCurrency == ethCurrency) {
-            
             claimReward = _sumAssured * (10 ** 18);
             msg.sender.transfer(claimReward);
-            
         } else {
-            
             IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
             uint256 decimals = uint256(erc20.decimals());
         
             claimReward = _sumAssured * (10 ** decimals);
-            require(erc20.transfer(msg.sender, claimReward), "Transfer failed");
+            erc20.safeTransfer(msg.sender, claimReward);
         }
     }
     
@@ -390,7 +408,7 @@ contract arNFT is
         uint256 sumAssured,
         uint256 premiumNXM
     ) {
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID1(_coverId);
     }
     
@@ -408,7 +426,7 @@ contract arNFT is
         uint16 coverPeriod,
         uint256 validUntil
     ) {
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID2(_coverId);
     }
     
@@ -418,7 +436,7 @@ contract arNFT is
      * @return Address of the currency in question.
     **/
     function _getCurrencyAssetAddress(bytes4 _currency) internal view returns (address) {
-        PoolData pd = PoolData(nxMaster.getLatestAddress("PD"));
+        IPoolData pd = IPoolData(nxMaster.getLatestAddress("PD"));
         return pd.getCurrencyAssetAddress(_currency);
     }
     
@@ -434,7 +452,7 @@ contract arNFT is
      * @dev Get the amount of time that a token can still be redeemed after it expires.
     **/
     function _getLockTokenTimeAfterCoverExpiry() internal returns (uint256) {
-        TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
+        ITokenData tokenData = ITokenData(nxMaster.getLatestAddress("TD"));
         return tokenData.lockTokenTimeAfterCoverExp();
     }
     
@@ -445,6 +463,6 @@ contract arNFT is
     **/
     function nxmTokenApprove(address _spender, uint256 _value) public onlyOwner {
         IERC20 nxmToken = IERC20(_getTokenAddress());
-        nxmToken.approve(_spender, _value);
+        nxmToken.safeApprove(_spender, _value);
     }
 }

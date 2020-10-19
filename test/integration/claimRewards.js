@@ -1,4 +1,3 @@
-const { accounts, defaultSender, web3 } = require('@openzeppelin/test-environment');
 const { balance, expectRevert, ether, send, time } = require('@openzeppelin/test-helpers');
 const getQuoteValues = require('../../nexusmutual/test/utils/getQuote.js').getQuoteValues;
 const {increaseTimeTo, duration, latestTime} = require('../../nexusmutual/test/utils/increaseTime');
@@ -18,12 +17,12 @@ const rewardRateScale = new BN('10').pow(new BN('18'));
 const smartConAdd = '0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf';
 const coverPeriod = 61;
 const coverDetails = [1, '3362445813369838', '744892736679184', '7972408607'];
+const Ownable = artifacts.require('OwnableMock');
 
-describe('arInsure', function () {
-
-  this.timeout(10000000);
-  const owner = defaultSender;
+contract('arInsure', function (accounts) {
+//  this.timeout(10000000);
   const [
+    owner,
     member1,
     member2,
     member3,
@@ -78,12 +77,11 @@ describe('arInsure', function () {
     });
 
   }
-
+  
+  before(setup);
+  before(initMembers);
 
   describe('integration test', function () {
-
-    before(setup);
-    before(initMembers);
     before( async function (){
       await this.tk.approve(this.mr.address, UNLIMITED_ALLOWANCE, {from: member5});
       await this.mr.switchMembership(this.arInsure.address,{from:member5});
@@ -102,7 +100,7 @@ describe('arInsure', function () {
         await expectRevert.unspecified(this.arInsure.switchMembership(member4,{from:member4}));
       });
       describe('when switched', async function(){
-        before(async function(){
+        beforeEach(async function(){
           await this.arInsure.switchMembership(accounts[12]);
         });
         it('should change membership', async function(){
@@ -324,7 +322,14 @@ describe('arInsure', function () {
         );
       });
 
+      it('should fail if not activated', async function(){
+        const token = await this.yInsure.tokens(0);
+        await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
+        await expectRevert(this.arInsure.swapYnft(0, {from:coverHolder}),"Swap is not activated yet");
+      });
+
       it('should be able to swap yNFT', async function() {
+        await this.arInsure.activateSwap();
         const token = await this.yInsure.tokens(0);
         await this.yInsure.approve(this.arInsure.address, 0, {from:coverHolder});
         await this.arInsure.swapYnft(0, {from:coverHolder});
@@ -450,7 +455,7 @@ describe('arInsure', function () {
       });
     });
     describe('#submitClaim()', async function () {
-      before(async function(){
+      beforeEach(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,
@@ -596,7 +601,7 @@ describe('arInsure', function () {
       });
 
       it('should route to ynft if token is swapped from ynft', async function(){
-        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        coverDetails[4] = new BN(coverDetails[4]).addn(100);
         vrsdata = await getQuoteValues(
           coverDetails,
           toHex('ETH'),
@@ -637,7 +642,6 @@ describe('arInsure', function () {
         await this.yInsure.approve(this.arInsure.address,tokenId, {from:coverHolder});
         await this.arInsure.swapYnft(tokenId,{from:coverHolder});
         const token = await this.yInsure.tokens(tokenId);
-        console.log(token);
         await this.arInsure.submitClaim(token.coverId, {from: coverHolder});
       });
       it('should update claimId when submitting denied claim', async function(){
@@ -698,7 +702,7 @@ describe('arInsure', function () {
     });
 
     describe('#redeemClaim()', function (){
-      before(async function(){
+      beforeEach(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,

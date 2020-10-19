@@ -529,27 +529,27 @@ ReentrancyGuard {
     ) internal returns (uint coverId) {
 
         uint coverPrice = coverDetails[1];
-        Pool1 pool1 = Pool1(nxMaster.getLatestAddress("P1"));
+        IPool1 pool1 = IPool1(nxMaster.getLatestAddress("P1"));
         if (coverCurrency == "ETH") {
             pool1.makeCoverBegin.value(coverPrice)(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
         } else {
             address payable pool1Address = address(uint160(address(pool1)));
-            PoolData poolData = PoolData(nxMaster.getLatestAddress("PD"));
+            IPoolData poolData = IPoolData(nxMaster.getLatestAddress("PD"));
             IERC20 erc20 = IERC20(poolData.getCurrencyAssetAddress(coverCurrency));
             erc20.approve(pool1Address, coverPrice);
             pool1.makeCoverUsingCA(coveredContractAddress, coverCurrency, coverDetails, coverPeriod, _v, _r, _s);
         }
 
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         // *assumes* the newly created claim is appended at the end of the list covers
         coverId = quotationData.getCoverLength().sub(1);
     }
 
     function _submitClaim(uint coverId) internal returns (uint) {
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         claims.submitClaim(coverId);
 
-        ClaimsData claimsData = ClaimsData(nxMaster.getLatestAddress("CD"));
+        IClaimsData claimsData = IClaimsData(nxMaster.getLatestAddress("CD"));
         uint claimId = claimsData.actualClaimLength() - 1;
         return claimId;
     }
@@ -567,15 +567,15 @@ ReentrancyGuard {
     uint16 coverPeriod,
     uint validUntil
     ) {
-        QuotationData quotationData = QuotationData(nxMaster.getLatestAddress("QD"));
+        IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         return quotationData.getCoverDetailsByCoverID2(coverId);
     }
 
     function _sellNXMTokens(uint amount) internal returns (uint ethValue) {
         address payable pool1Address = nxMaster.getLatestAddress("P1");
-        Pool1 p1 = Pool1(pool1Address);
+        IPool1 p1 = IPool1(pool1Address);
 
-        NXMToken nxmToken = NXMToken(nxMaster.tokenAddress());
+        INXMToken nxmToken = INXMToken(nxMaster.tokenAddress());
 
         ethValue = p1.getWei(amount);
         nxmToken.approve(pool1Address, amount);
@@ -583,12 +583,12 @@ ReentrancyGuard {
     }
 
     function _getCurrencyAssetAddress(bytes4 currency) internal view returns (address) {
-        PoolData pd = PoolData(nxMaster.getLatestAddress("PD"));
+        IPoolData pd = IPoolData(nxMaster.getLatestAddress("PD"));
         return pd.getCurrencyAssetAddress(currency);
     }
 
     function _getLockTokenTimeAfterCoverExpiry() internal returns (uint) {
-        TokenData tokenData = TokenData(nxMaster.getLatestAddress("TD"));
+        ITokenData tokenData = ITokenData(nxMaster.getLatestAddress("TD"));
         return tokenData.lockTokenTimeAfterCoverExp();
     }
 
@@ -598,7 +598,7 @@ ReentrancyGuard {
 
     function _payoutIsCompleted(uint claimId) internal view returns (bool) {
         uint256 status;
-        Claims claims = Claims(nxMaster.getLatestAddress("CL"));
+        IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         (, status, , , ) = claims.getClaimbyIndex(claimId);
         return status == uint(ClaimStatus.FinalClaimAssessorVoteAccepted)
             || status == uint(ClaimStatus.ClaimAcceptedPayoutDone);
@@ -618,9 +618,9 @@ ReentrancyGuard {
     }
 
     function switchMembership(address _newMembership) external onlyOwner {
-        NXMToken nxmToken = NXMToken(nxMaster.tokenAddress());
+        INXMToken nxmToken = INXMToken(nxMaster.tokenAddress());
         nxmToken.approve(getMemberRoles(),uint(-1));
-        MemberRoles(getMemberRoles()).switchMembership(_newMembership);
+        IMemberRoles(getMemberRoles()).switchMembership(_newMembership);
     }
 
     // Arguments to be passed as coverDetails, from the quote api:

@@ -1,11 +1,10 @@
-const { contract } = require('@openzeppelin/test-environment');
 const { BN, constants, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 const { ZERO_ADDRESS } = constants;
 const { shouldSupportInterfaces } = require('./SupportsInterface.behavior');
 
-const ERC721Mock = contract.fromArtifact('ERC721FullMock');
-const ERC721ReceiverMock = contract.fromArtifact('ERC721ReceiverMock');
+const ERC721Mock = artifacts.require('ERC721FullMock');
+const ERC721ReceiverMock = artifacts.require('ERC721ReceiverMock');
 
 function shouldBehaveLikeERC721 (
   creator,

@@ -1,39 +1,39 @@
-const { contract, defaultSender } = require('@openzeppelin/test-environment');
 const { BN, ether, time } = require('@openzeppelin/test-helpers');
 const { assert } = require('chai');
 const { hex, sleep } = require('../utils');
 
 // external
-const DAI = contract.fromArtifact('MockDAIMintable');
-const MKR = contract.fromArtifact('MockMKR');
-const DSValue = contract.fromArtifact('NXMDSValueMock');
-const FactoryMock = contract.fromArtifact('FactoryMock');
-const ExchangeMock = contract.fromArtifact('ExchangeMock');
-const ExchangeMKRMock = contract.fromArtifact('ExchangeMock');
-const OwnedUpgradeabilityProxy = contract.fromArtifact('OwnedUpgradeabilityProxy');
+const DAI = artifacts.require('MockDAIMintable');
+const MKR = artifacts.require('MockMKR');
+const DSValue = artifacts.require('NXMDSValueMock');
+const FactoryMock = artifacts.require('FactoryMock');
+const ExchangeMock = artifacts.require('ExchangeMock');
+const ExchangeMKRMock = artifacts.require('ExchangeMock');
+const OwnedUpgradeabilityProxy = artifacts.require('OwnedUpgradeabilityProxy');
 
 // nexusmutual
-const NXMToken = contract.fromArtifact('NXMToken');
-const NXMaster = contract.fromArtifact('NXMasterMock');
-const Claims = contract.fromArtifact('Claims');
-const ClaimsData = contract.fromArtifact('ClaimsDataMock');
-const ClaimsReward = contract.fromArtifact('ClaimsReward');
-const MCR = contract.fromArtifact('MCR');
-const TokenData = contract.fromArtifact('TokenDataMock');
-const TokenFunctions = contract.fromArtifact('TokenFunctions');
-const TokenController = contract.fromArtifact('TokenController');
-const Pool1 = contract.fromArtifact('Pool1Mock');
-const Pool2 = contract.fromArtifact('Pool2');
-const PoolData = contract.fromArtifact('PoolDataMock');
-const Quotation = contract.fromArtifact('Quotation');
-const QuotationData = contract.fromArtifact('QuotationData');
-const Governance = contract.fromArtifact('GovernanceMock');
-const ProposalCategory = contract.fromArtifact('ProposalCategoryMock');
-const MemberRoles = contract.fromArtifact('MemberRoles');
-const PooledStaking = contract.fromArtifact('PooledStaking');
-const MintableERC20 = contract.fromArtifact('MintableERC20');
-const ARInsure = contract.fromArtifact('arNFT');
-const YInsure = contract.fromArtifact('yInsure');
+const NXMToken = artifacts.require('NXMToken');
+const NXMaster = artifacts.require('NXMasterMock');
+const Claims = artifacts.require('Claims');
+const ClaimsData = artifacts.require('ClaimsDataMock');
+const ClaimsReward = artifacts.require('ClaimsReward');
+const MCR = artifacts.require('MCR');
+const TokenData = artifacts.require('TokenDataMock');
+const TokenFunctions = artifacts.require('TokenFunctions');
+const TokenController = artifacts.require('TokenController');
+const Pool1 = artifacts.require('Pool1Mock');
+const Pool2 = artifacts.require('Pool2');
+const PoolData = artifacts.require('PoolDataMock');
+const Quotation = artifacts.require('Quotation');
+const QuotationData = artifacts.require('QuotationData');
+const Governance = artifacts.require('GovernanceMock');
+const ProposalCategory = artifacts.require('ProposalCategoryMock');
+const MemberRoles = artifacts.require('MemberRoles');
+const PooledStaking = artifacts.require('PooledStaking');
+const MintableERC20 = artifacts.require('MintableERC20');
+const ARInsure = artifacts.require('arNFT');
+const YInsure = artifacts.require('yInsure');
+const Ownable = artifacts.require('OwnableMock');
 
 const QE = '0x51042c4d8936a7764d18370a6a0762b860bb8e07';
 const INITIAL_SUPPLY = ether('1500000');
@@ -49,7 +49,8 @@ const getProxyFromMaster = async (master, contract, code) => {
 
 async function setup () {
 
-  const owner = defaultSender;
+  const ownable = await Ownable.new();
+  const owner = await ownable.owner();
 
   // deploy external contracts
   const dai = await DAI.new();
@@ -182,7 +183,7 @@ async function setup () {
 
   const mockTokenA = await MintableERC20.new('MockTokenA', 'MTA');
 
-  const yInsure = await YInsure.new(0,master.address,{gas:10000000});
+  const yInsure = await YInsure.new(0,master.address);
   const arInsure = await ARInsure.new(master.address, yInsure.address);
   await time.increase(roundsStartTimeSecondsUntilStart + 10);
 

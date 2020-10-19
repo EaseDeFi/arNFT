@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-interface Pool1  {
+interface IPool1  {
     function changeDependentContractAddress() external;
     function makeCoverBegin(
         address smartCAdd,
