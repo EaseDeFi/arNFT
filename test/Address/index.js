@@ -6,7 +6,7 @@ const SimpleToken = artifacts.require('MintableERC20');
 const EtherReceiver = artifacts.require('EtherReceiverMock');
 
 contract('Address', function (accounts) {
-  const [ recipient, other ] = accounts;
+  const [sender, recipient, other ] = accounts;
 
   const ALL_ONES_ADDRESS = '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF';
 

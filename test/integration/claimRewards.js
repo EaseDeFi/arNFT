@@ -19,11 +19,10 @@ const coverPeriod = 61;
 const coverDetails = [1, '3362445813369838', '744892736679184', '7972408607'];
 const Ownable = artifacts.require('OwnableMock');
 
-contract.only('arInsure', function (accounts) {
-
+contract('arInsure', function (accounts) {
 //  this.timeout(10000000);
-  let owner;
   const [
+    owner,
     member1,
     member2,
     member3,
@@ -68,8 +67,6 @@ contract.only('arInsure', function (accounts) {
     members.push(coverHolder);
 
     for (const member of members) {
-      console.log(member);
-      console.log(mr.address);
       await mr.payJoiningFee(member, { from: member, value: fee });
       await mr.kycVerdict(member, true);
       await tk.approve(tc.address, UNLIMITED_ALLOWANCE, { from: member });
@@ -80,18 +77,12 @@ contract.only('arInsure', function (accounts) {
     });
 
   }
-
-  beforeEach(async function(){
-    const ownable = await Ownable.new();
-    owner = await ownable.owner();
-  });
-
+  
+  before(setup);
+  before(initMembers);
 
   describe('integration test', function () {
-
-    beforeEach( async function (){
-      await setup();
-      await initMembers();
+    before( async function (){
       await this.tk.approve(this.mr.address, UNLIMITED_ALLOWANCE, {from: member5});
       await this.mr.switchMembership(this.arInsure.address,{from:member5});
       await this.mr.payJoiningFee(member5, { from: member5, value: fee });
@@ -109,7 +100,7 @@ contract.only('arInsure', function (accounts) {
         await expectRevert.unspecified(this.arInsure.switchMembership(member4,{from:member4}));
       });
       describe('when switched', async function(){
-        before(async function(){
+        beforeEach(async function(){
           await this.arInsure.switchMembership(accounts[12]);
         });
         it('should change membership', async function(){
@@ -274,7 +265,7 @@ contract.only('arInsure', function (accounts) {
       let coverID;
       let coverCurr;
 
-      before(async function(){
+      beforeEach(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,
@@ -457,7 +448,7 @@ contract.only('arInsure', function (accounts) {
       });
     });
     describe('#submitClaim()', async function () {
-      before(async function(){
+      beforeEach(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,
@@ -603,7 +594,7 @@ contract.only('arInsure', function (accounts) {
       });
 
       it('should route to ynft if token is swapped from ynft', async function(){
-        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        coverDetails[4] = new BN(coverDetails[4]).addn(100);
         vrsdata = await getQuoteValues(
           coverDetails,
           toHex('ETH'),
@@ -644,7 +635,6 @@ contract.only('arInsure', function (accounts) {
         await this.yInsure.approve(this.arInsure.address,tokenId, {from:coverHolder});
         await this.arInsure.swapYnft(tokenId,{from:coverHolder});
         const token = await this.yInsure.tokens(tokenId);
-        console.log(token);
         await this.arInsure.submitClaim(token.coverId, {from: coverHolder});
       });
       it('should update claimId when submitting denied claim', async function(){
@@ -705,7 +695,7 @@ contract.only('arInsure', function (accounts) {
     });
 
     describe('#redeemClaim()', function (){
-      before(async function(){
+      beforeEach(async function(){
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
           coverDetails,

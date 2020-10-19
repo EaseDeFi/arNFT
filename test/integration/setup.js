@@ -183,7 +183,7 @@ async function setup () {
 
   const mockTokenA = await MintableERC20.new('MockTokenA', 'MTA');
 
-  const yInsure = await YInsure.new(1,master.address,{gas:10000000});
+  const yInsure = await YInsure.new(0,master.address);
   const arInsure = await ARInsure.new(master.address, yInsure.address);
   await time.increase(roundsStartTimeSecondsUntilStart + 10);
 
