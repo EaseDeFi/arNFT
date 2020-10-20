@@ -26,6 +26,9 @@ contract arNFT is
     // cover Id => claim Id
     mapping (uint256 => uint256) public claimIds;
     
+    // cover Id => cover price
+    mapping (uint256 => uint256) public coverPrices;
+    
     // cover Id => yNFT token Id.
     // Used to route yNFT submits through their contract.
     // if zero, it is not swapped from yInsure
@@ -267,10 +270,12 @@ contract arNFT is
              uint256 validUntil, 
              address scAddress, 
              bytes4 currencyCode, 
-             uint256 premiumNXM)
+             uint256 premiumNXM,
+             uint256 coverPrice)
     {
         (/*cid*/, /*memberAddress*/, scAddress, currencyCode, /*sumAssured*/, premiumNXM) = _getCover1(_tokenId);
         (cid, status, sumAssured, coverPeriod, validUntil) = _getCover2(_tokenId);
+        coverPrice = coverPrices[_tokenId];
     }
     
     /**
@@ -327,6 +332,9 @@ contract arNFT is
         IQuotationData quotationData = IQuotationData(nxMaster.getLatestAddress("QD"));
         // *assumes* the newly created claim is appended at the end of the list covers
         coverId = quotationData.getCoverLength().sub(1);
+        
+        // Keep track of how much was paid for this cover.
+        coverPrices[coverId] = coverPrice;
     }
     
     /**
