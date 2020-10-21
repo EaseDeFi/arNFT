@@ -94,7 +94,8 @@ contract arNFT is
         bytes4 currency,
         uint256 coverAmount,
         uint256 coverPrice,
-        uint256 coverPriceNXM
+        uint256 coverPriceNXM,
+        uint16 coverPeriod
     );
 
     
@@ -151,7 +152,7 @@ contract arNFT is
         _mint(msg.sender, coverId);
         
         emit BuyCover(coverId, msg.sender, _coveredContractAddress, _coverCurrency, _coverDetails[0], _coverDetails[1], 
-                      _coverDetails[2]);
+                      _coverDetails[2], _coverPeriod);
     }
     
     /**
