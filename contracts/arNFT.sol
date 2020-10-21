@@ -24,15 +24,15 @@ contract arNFT is
     bytes4 internal constant ethCurrency = "ETH";
     
     // cover Id => claim Id
-    mapping (uint256 => uint256) private claimIds;
+    mapping (uint256 => uint256) public claimIds;
     
     // cover Id => cover price
-    mapping (uint256 => uint256) private coverPrices;
+    mapping (uint256 => uint256) public coverPrices;
     
     // cover Id => yNFT token Id.
     // Used to route yNFT submits through their contract.
     // if zero, it is not swapped from yInsure
-    mapping(uint256 => uint256) private swapIds;
+    mapping(uint256 => uint256) public swapIds;
 
     // indicates if swap for yInsure is available
     // cannot go back to false
@@ -219,12 +219,13 @@ contract arNFT is
         //this does not returns bool
         ynft.transferFrom(msg.sender, address(this), _ynftTokenId);
         
-        (uint256 coverId, uint256 claimId) = _getCoverAndClaim(_ynftTokenId);
+        (uint256 coverPrice, uint256 coverId, uint256 claimId) = _getCoverAndClaim(_ynftTokenId);
 
         _mint(msg.sender, coverId);
 
         swapIds[coverId] = _ynftTokenId;
         claimIds[coverId] = claimId;
+        coverPrices[coverId] = coverPrice;
         
         emit SwappedYInsure(_ynftTokenId, coverId);
     }
@@ -362,7 +363,7 @@ contract arNFT is
         uint256 ynftTokenId = swapIds[_tokenId];
         ynft.submitClaim(ynftTokenId);
         
-        (/*coverId*/, uint256 claimId) = _getCoverAndClaim(ynftTokenId);
+        (/*coverPrice*/, /*coverId*/, uint256 claimId) = _getCoverAndClaim(ynftTokenId);
         claimIds[_tokenId] = claimId;
     }
 
@@ -405,9 +406,9 @@ contract arNFT is
     **/
     function _getCoverAndClaim(uint256 _ynftTokenId)
       internal
-    returns (uint256 coverId, uint256 claimId)
+    returns (uint256 coverPrice, uint256 coverId, uint256 claimId)
     {
-       ( , , , , , , , coverId, , claimId) = ynft.tokens(_ynftTokenId);
+       ( , , , coverPrice, , , , coverId, , claimId) = ynft.tokens(_ynftTokenId);
     }
     
     /**
