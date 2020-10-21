@@ -24,15 +24,15 @@ contract arNFT is
     bytes4 internal constant ethCurrency = "ETH";
     
     // cover Id => claim Id
-    mapping (uint256 => uint256) public claimIds;
+    mapping (uint256 => uint256) private claimIds;
     
     // cover Id => cover price
-    mapping (uint256 => uint256) public coverPrices;
+    mapping (uint256 => uint256) private coverPrices;
     
     // cover Id => yNFT token Id.
     // Used to route yNFT submits through their contract.
     // if zero, it is not swapped from yInsure
-    mapping(uint256 => uint256) public swapIds;
+    mapping(uint256 => uint256) private swapIds;
 
     // indicates if swap for yInsure is available
     // cannot go back to false
@@ -270,11 +270,13 @@ contract arNFT is
              address scAddress, 
              bytes4 currencyCode, 
              uint256 premiumNXM,
-             uint256 coverPrice)
+             uint256 coverPrice,
+             uint256 claimId)
     {
         (/*cid*/, /*memberAddress*/, scAddress, currencyCode, /*sumAssured*/, premiumNXM) = _getCover1(_tokenId);
         (cid, status, sumAssured, coverPeriod, validUntil) = _getCover2(_tokenId);
         coverPrice = coverPrices[_tokenId];
+        claimId = claimIds[_tokenId];
     }
     
     /**
