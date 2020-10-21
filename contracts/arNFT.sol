@@ -90,12 +90,11 @@ contract arNFT is
     event BuyCover (
         uint indexed coverId,
         address indexed buyer,
-        bytes4 indexed currency,
+        address indexed coveredContract,
+        bytes4 currency,
         uint256 coverAmount,
         uint256 coverPrice,
         uint256 coverPriceNXM,
-        uint256 expireTime,
-        uint256 generationTime,
         uint16 coverPeriod
     );
 
@@ -152,8 +151,8 @@ contract arNFT is
         uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
         _mint(msg.sender, coverId);
         
-        emit BuyCover(coverId, msg.sender, _coverCurrency, _coverDetails[0], _coverDetails[1], 
-                      _coverDetails[2], _coverDetails[3], _coverDetails[4], _coverPeriod);
+        emit BuyCover(coverId, msg.sender, _coveredContractAddress, _coverCurrency, _coverDetails[0], _coverDetails[1], 
+                      _coverDetails[2], _coverPeriod);
     }
     
     /**
