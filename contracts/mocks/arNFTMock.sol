@@ -97,6 +97,14 @@ contract arNFTMock is
         uint16 coverPeriod
     );
 
+    function mockSetCoverStatus(uint256 _coverId, uint8 _status) external {
+        status_[_coverId] = _status;
+    }
+
+    function mockSetClaimStatus(uint256 _claimId, uint256 _claimStatus) external {
+        claimStatus_[_claimId] = _claimStatus;
+    }
+
     
     /**
      * @dev Make sure only the owner of a token or someone approved to transfer it can call.
