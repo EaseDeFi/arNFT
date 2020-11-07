@@ -32,7 +32,10 @@ contract arNFT is
     // cover Id => yNFT token Id.
     // Used to route yNFT submits through their contract.
     // if zero, it is not swapped from yInsure
-    mapping(uint256 => uint256) public swapIds;
+    mapping (uint256 => uint256) public swapIds;
+
+    // Mapping ("NAME" => smart contract address) of allowed cover currencies.
+    mapping (bytes4 => address) public coverCurrencies;
 
     // indicates if swap for yInsure is available
     // cannot go back to false
@@ -43,6 +46,9 @@ contract arNFT is
 
     // yNFT contract that we're swapping tokens from.
     IyInsure public ynft;
+
+    // NXM token.
+    IERC20 public nxmToken;
     
     enum CoverStatus {
         Active,
@@ -108,9 +114,10 @@ contract arNFT is
         _;
     }
 
-    constructor(address _nxMaster, address _ynft) public {
+    constructor(address _nxMaster, address _ynft, address _nxmToken) public {
         nxMaster = INXMMaster(_nxMaster);
         ynft = IyInsure(_ynft);
+        nxmToken = IERC20(_nxmToken);
     }
     
     function () payable external {}
@@ -142,7 +149,8 @@ contract arNFT is
         if (_coverCurrency == "ETH") {
             require(msg.value == coverPrice, "Incorrect value sent");
         } else {
-            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
+            IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
+            require(erc20 != IERC20( address(0) ), "Cover currency is not allowed.");
 
             require(msg.value == 0, "Eth not required when buying with erc20");
             erc20.safeTransferFrom(msg.sender, address(this), coverPrice);
@@ -166,14 +174,8 @@ contract arNFT is
             return;
         }
         
-        (uint256 coverId, uint8 coverStatus, /*sumAssured*/, /*coverPeriod*/, uint256 validUntil) = _getCover2(_tokenId);
-        if (claimIds[_tokenId] > 0) {
-            require(coverStatus == uint8(CoverStatus.ClaimDenied),
-            "Can submit another claim only if the previous one was denied.");
-        }
-        
-        // A submission until it has expired + a defined amount of time.
-        require(validUntil + _getLockTokenTimeAfterCoverExpiry() >= block.timestamp, "Token is expired");
+        (uint256 coverId, /*uint8 coverStatus*/, /*sumAssured*/, /*coverPeriod*/, /*uint256 validUntil*/) = _getCover2(_tokenId);
+
         uint256 claimId = _submitClaim(coverId);
         claimIds[_tokenId] = claimId;
         
@@ -188,9 +190,8 @@ contract arNFT is
         require(claimIds[_tokenId] != 0, "No claim is in progress.");
         
         (/*cid*/, /*memberAddress*/, /*scAddress*/, bytes4 currencyCode, /*sumAssured*/, /*premiumNXM*/) = _getCover1(_tokenId);
-        ( , uint8 coverStatus, uint256 sumAssured, , ) = _getCover2(_tokenId);
+        ( , /*uint8 coverStatus*/, uint256 sumAssured, , ) = _getCover2(_tokenId);
         
-        require(coverStatus == uint8(CoverStatus.ClaimAccepted), "Claim is not accepted");
         require(_payoutIsCompleted(claimIds[_tokenId]), "Claim accepted but payout not completed");
        
         // this will prevent duplicate redeem 
@@ -303,7 +304,6 @@ contract arNFT is
      * @param _newMembership Membership address to change to.
     **/
     function switchMembership(address _newMembership) external onlyOwner {
-        IERC20 nxmToken = IERC20(nxMaster.tokenAddress());
         nxmToken.safeApprove(getMemberRoles(),uint(-1));
         IMemberRoles(getMemberRoles()).switchMembership(_newMembership);
     }
@@ -376,8 +376,7 @@ contract arNFT is
         uint256 status;
         IClaims claims = IClaims(nxMaster.getLatestAddress("CL"));
         (, status, , , ) = claims.getClaimbyIndex(_claimId);
-        return status == uint256(ClaimStatus.FinalClaimAssessorVoteAccepted)
-            || status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
+        return status == uint256(ClaimStatus.ClaimAcceptedPayoutDone);
     }
 
     /**
@@ -392,9 +391,10 @@ contract arNFT is
             claimReward = _sumAssured * (10 ** 18);
             msg.sender.transfer(claimReward);
         } else {
-            IERC20 erc20 = IERC20(_getCurrencyAssetAddress(_coverCurrency));
+            IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
+            require (erc20 != IERC20( address(0) ), "Cover currency is not allowed.");
+
             uint256 decimals = uint256(erc20.decimals());
-        
             claimReward = _sumAssured * (10 ** decimals);
             erc20.safeTransfer(msg.sender, claimReward);
         }
@@ -449,38 +449,21 @@ contract arNFT is
     }
     
     /**
-     * @dev Get current address of the desired currency.
-     * @param _currency bytes4 currencyCode of the currency in question.
-     * @return Address of the currency in question.
-    **/
-    function _getCurrencyAssetAddress(bytes4 _currency) internal view returns (address) {
-        IPoolData pd = IPoolData(nxMaster.getLatestAddress("PD"));
-        return pd.getCurrencyAssetAddress(_currency);
-    }
-    
-    /**
-     * @dev Get address of the NXM token.
-     * @return Current NXM token address.
-    **/
-    function _getTokenAddress() internal view returns (address) {
-        return nxMaster.tokenAddress();
-    }
-    
-    /**
-     * @dev Get the amount of time that a token can still be redeemed after it expires.
-    **/
-    function _getLockTokenTimeAfterCoverExpiry() internal returns (uint256) {
-        ITokenData tokenData = ITokenData(nxMaster.getLatestAddress("TD"));
-        return tokenData.lockTokenTimeAfterCoverExp();
-    }
-    
-    /**
      * @dev Approve an address to spend NXM tokens from the contract.
      * @param _spender Address to be approved.
      * @param _value The amount of NXM to be approved.
     **/
     function nxmTokenApprove(address _spender, uint256 _value) public onlyOwner {
-        IERC20 nxmToken = IERC20(_getTokenAddress());
         nxmToken.safeApprove(_spender, _value);
     }
+
+    /**
+     * @dev Add an allowed cover currency to the arNFT system if one is added to Nexus Mutual.
+     * @param _coverCurrency Address of the cover currency to add.
+    **/
+    function addCurrency(bytes4 _coverCurrency, address _coverCurrencyAddress) public onlyOwner {
+        require(coverCurrencies[_coverCurrency] == address(0), "Cover currency already exists.");
+        coverCurrencies[_coverCurrency] = _coverCurrencyAddress;
+    }
+
 }
