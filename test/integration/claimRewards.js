@@ -19,7 +19,7 @@ const coverPeriod = 61;
 const coverDetails = [1, '3362445813369838', '744892736679184', '7972408607'];
 const Ownable = artifacts.require('OwnableMock');
 
-contract('arInsure', function (accounts) {
+contract.only('arInsure', function (accounts) {
 //  this.timeout(10000000);
   const [
     owner,
@@ -83,6 +83,7 @@ contract('arInsure', function (accounts) {
 
   describe('integration test', function () {
     before( async function (){
+      await this.arInsure.addCurrency('0x444149',this.dai.address, {from:owner});
       await this.tk.approve(this.mr.address, UNLIMITED_ALLOWANCE, {from: member5});
       await this.mr.switchMembership(this.arInsure.address,{from:member5});
       await this.mr.payJoiningFee(member5, { from: member5, value: fee });
