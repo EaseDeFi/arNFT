@@ -34,8 +34,7 @@
     "solidity-coverage": "^0.7.4",
     "truffle": "^5.1.21",
     "truffle-hdwallet-provider": "^1.0.17",
-    "web3": "^1.2.6",
-    "leafleth": "https://github.com/leekt216/leafleth"
+    "web3": "^1.2.6"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.0",
