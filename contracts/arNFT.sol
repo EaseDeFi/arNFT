@@ -6,6 +6,7 @@ import "./libraries/ReentrancyGuard.sol";
 import "./libraries/SafeERC20.sol";
 import "./externals/Externals.sol";
 import "./interfaces/IERC20.sol";
+import "./interface/IUniswapV2Factory.sol";
 
 /** 
     @title Armor NFT
@@ -49,6 +50,21 @@ contract arNFT is
 
     // NXM token.
     IERC20 public nxmToken;
+
+    // WETH Token
+    IERC20 public wethToken;
+
+    // Uniswap V2 Router
+    IUniswapV2Router02 public uniRouter;
+
+    // Premium that we charge for the cover
+    uint8 public premium;
+
+    // // Uniswap V2 Factory
+    // IUniswapV2Factory public uniFactory;
+
+    // // Uniswap V2 WETH-WNXM Pair
+    // IUniswapV2Pair public wethNxmPair;
     
     enum CoverStatus {
         Active,
@@ -114,10 +130,13 @@ contract arNFT is
         _;
     }
 
-    constructor(address _nxMaster, address _ynft, address _nxmToken) public {
+    constructor(address _nxMaster, address _ynft, address _nxmToken, address _wethToken, address _uniswapV2Router02, address _uniswapV2Factory, uint8 _premium) public {
         nxMaster = INXMMaster(_nxMaster);
         ynft = IyInsure(_ynft);
         nxmToken = IERC20(_nxmToken);
+        wethToken = IERC20(_wethToken);
+        uniRouter = IUniswapV2Router02(_uniswapV2Router02);
+        premium = _premium;
     }
     
     function () payable external {}
@@ -135,7 +154,84 @@ contract arNFT is
      * @param _coverPeriod Amount of time to buy cover for.
      * @param _v , _r, _s Signature of the Nexus Mutual API.
     **/
-    function buyCover(
+    function buyCoverWnxmSpot(
+        address _coveredContractAddress,
+        bytes4 _coverCurrency,
+        uint[] calldata _coverDetails,
+        uint16 _coverPeriod,
+        uint256 _coverPriceWETH,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external payable {
+        uint256 coverPrice = _coverDetails[1];
+        uint256 coverPriceNXM = _coverDetails[2];
+        address[] memory path = [address(wethToken), address(nxmToken)];
+
+
+        uint256[] memory _amountOutMins = uniRouter.getAmountsOut(
+            (_coverCurrency == "ETH"? msg.value: _coverPriceWETH),
+            path
+        );
+
+        require(_amountOutMins[path.length - 1] > (coverPriceNXM * premium), "Incorrect value sent");
+
+        if (_coverCurrency == "ETH") {
+            require(_coverPriceWETH == 0, "No WETH required when paying with ETH");
+            wethToken.deposit{value: msg.value}();
+            wethToken.safeTransferFrom(msg.sender, address(this), msg.value);
+        } else {
+            IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
+            require(erc20 == wethToken, "Only WETH or ETH allowed.");
+            require(msg.value == 0, "ETH not required when buying with WETH");
+            wethToken.safeTransferFrom(msg.sender, address(this), _coverPriceWETH);
+        }
+        
+        uniRouter.swapExactETHForTokens(
+            _amountOutMins[path.length - 1],
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
+        _mint(msg.sender, coverId);
+        
+        emit BuyCover(coverId, msg.sender, _coveredContractAddress, _coverCurrency, _coverDetails[0], _coverDetails[1], 
+                      block.timestamp, _coverPeriod);
+    }
+
+    // This function doesn't swap ETH to wNXM but rather uses our reserves wNXM to purchase cover. 
+    // TODO: not yet implemented. it's still the same as buyCoverOld
+    function buyCoverWnxmReserve(
+        address _coveredContractAddress,
+        bytes4 _coverCurrency,
+        uint[] calldata _coverDetails,
+        uint16 _coverPeriod,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external payable {
+        uint256 coverPrice = _coverDetails[1];
+
+        if (_coverCurrency == "ETH") {
+            require(msg.value == coverPrice, "Incorrect value sent");
+        } else {
+            IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
+            require(erc20 != IERC20( address(0) ), "Cover currency is not allowed.");
+
+            require(msg.value == 0, "Eth not required when buying with erc20");
+            erc20.safeTransferFrom(msg.sender, address(this), coverPrice);
+        }
+        
+        uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
+        _mint(msg.sender, coverId);
+        
+        emit BuyCover(coverId, msg.sender, _coveredContractAddress, _coverCurrency, _coverDetails[0], _coverDetails[1], 
+                      block.timestamp, _coverPeriod);
+    }
+
+    function buyCoverOld(
         address _coveredContractAddress,
         bytes4 _coverCurrency,
         uint[] calldata _coverDetails,
