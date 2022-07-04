@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+//TODO: used to be ^0.5.0. Need to check if 0.8.13 can be used without problems
+pragma solidity ^0.8.13;
 interface IarNFT{
   function balanceOf(address owner) external view returns (uint256 balance);
   function ownerOf(uint256 tokenId) external view returns (address owner);

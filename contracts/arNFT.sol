@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+//TODO: used to be ^0.5.0. Need to check if 0.8.13 can be used without problems
+pragma solidity ^0.8.11;
 
 import "./libraries/ERC721Full.sol";
 import "./libraries/Ownable.sol";
@@ -6,7 +7,8 @@ import "./libraries/ReentrancyGuard.sol";
 import "./libraries/SafeERC20.sol";
 import "./externals/Externals.sol";
 import "./interfaces/IERC20.sol";
-import "./interface/IUniswapV2Factory.sol";
+import "./interfaces/IUniswapV2Factory.sol";
+import "./interfaces/IwNXM.sol";
 
 /** 
     @title Armor NFT
@@ -42,6 +44,10 @@ contract arNFT is
     // cannot go back to false
     bool public swapActivated;
 
+    // indicates if we use our own NXM to buy cover for msg.sender or if we buy wNXM on spot and unwrap to NXM
+    // true = own NXM; false = buy wNXM on spot
+    bool public useReserveNXM;
+
     // Nexus Mutual master contract.
     INXMMaster public nxMaster;
 
@@ -51,8 +57,14 @@ contract arNFT is
     // NXM token.
     IERC20 public nxmToken;
 
-    // WETH Token
+    // wNXM token
+    IERC20 public wnxmToken;
+
+    // WETH token
     IERC20 public wethToken;
+
+    // NXM wrapper
+    IwNXM public nxmWrapper;
 
     // Uniswap V2 Router
     IUniswapV2Router02 public uniRouter;
@@ -130,16 +142,24 @@ contract arNFT is
         _;
     }
 
-    constructor(address _nxMaster, address _ynft, address _nxmToken, address _wethToken, address _uniswapV2Router02, address _uniswapV2Factory, uint8 _premium) public {
+    constructor(address _nxMaster, address _ynft, address _nxmToken, address _wethToken, address _nxmWrapper, address _uniswapV2Router02, address _uniswapV2Factory, uint8 _premium) public {
         nxMaster = INXMMaster(_nxMaster);
         ynft = IyInsure(_ynft);
         nxmToken = IERC20(_nxmToken);
+        wnxmToken = IERC20(_wnxmWrapper);
         wethToken = IERC20(_wethToken);
+        nxmWrapper = IwNXM(_nxmWrapper);
         uniRouter = IUniswapV2Router02(_uniswapV2Router02);
         premium = _premium;
     }
     
-    function () payable external {}
+    fallback () payable external {}
+
+    function setUseReserveNXM(
+        bool _useReserveNXM
+    ) external onlyOwner {
+        useReserveNXM = _useReserveNXM;
+    }
     
     // Arguments to be passed as coverDetails, from the quote api:
     //    coverDetails[0] = coverAmount;
@@ -154,7 +174,7 @@ contract arNFT is
      * @param _coverPeriod Amount of time to buy cover for.
      * @param _v , _r, _s Signature of the Nexus Mutual API.
     **/
-    function buyCoverWnxmSpot(
+    function buyCoverEthWnxmSpot(
         address _coveredContractAddress,
         bytes4 _coverCurrency,
         uint[] calldata _coverDetails,
@@ -163,10 +183,11 @@ contract arNFT is
         uint8 _v,
         bytes32 _r,
         bytes32 _s
+        //TODO: useReserveNXM variable that decides whether we buy wnxm on spot or use our own nxm
     ) external payable {
         uint256 coverPrice = _coverDetails[1];
         uint256 coverPriceNXM = _coverDetails[2];
-        address[] memory path = [address(wethToken), address(nxmToken)];
+        address[] memory path = [address(wethToken), address(wnxmToken)];
 
 
         uint256[] memory _amountOutMins = uniRouter.getAmountsOut(
@@ -178,22 +199,63 @@ contract arNFT is
 
         if (_coverCurrency == "ETH") {
             require(_coverPriceWETH == 0, "No WETH required when paying with ETH");
-            wethToken.deposit{value: msg.value}();
+            wethToken.deposit.value(msg.value);
+            // TODO: send ETH directly to our address
             wethToken.safeTransferFrom(msg.sender, address(this), msg.value);
         } else {
             IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
             require(erc20 == wethToken, "Only WETH or ETH allowed.");
             require(msg.value == 0, "ETH not required when buying with WETH");
+        // TODO: send ETH directly to our address if we use our own NXM to buy cover
             wethToken.safeTransferFrom(msg.sender, address(this), _coverPriceWETH);
         }
         
-        uniRouter.swapExactETHForTokens(
-            _amountOutMins[path.length - 1],
-            path,
-            address(this),
-            block.timestamp
-        );
+        if(useReserveNXM == false) {
+            // spot sells ETH for wNXM, unwraps wNXM -> NXM to buy cover with NXM
+            uint256[] memory _amountOut = uniRouter.swapExactETHForTokens(
+                _amountOutMins[path.length - 1],
+                path,
+                address(this),
+                block.timestamp
+            );
+            
+            //TODO: is right index 0 or 1?
+            nxmWrapper.unwrap(_amountOut[0]);
+            // alt: .unwrapTo
+        } else {
+            // unwraps wNXM -> NXM to buy cover with NXM
+            require(wnxmToken.balanceOf(address(this)) >= coverPriceNXM, "Contract doesn't have enough wNXM");
+            nxmWrapper.unwrap(_amountOut[0]);
+            // alt: .unwrapTo
+        }
 
+        uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
+        _mint(msg.sender, coverId);
+        
+        emit BuyCover(coverId, msg.sender, _coveredContractAddress, _coverCurrency, _coverDetails[0], _coverDetails[1], 
+                      block.timestamp, _coverPeriod);
+    }
+
+    
+    function buyCoverUnwrapWnxm(
+        address _coveredContractAddress,
+        bytes4 _coverCurrency,
+        uint[] calldata _coverDetails,
+        uint16 _coverPeriod,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external payable {
+        uint256 coverPrice = _coverDetails[1];
+
+        require(_coverCurrency == "wNXM", "Only buyable with wNXM");
+        //TODO: is this the check to see if wNXM has been added to coverCurrencies?
+        IERC20 erc20 = IERC20( coverCurrencies[_coverCurrency] );
+        require(erc20 != IERC20( address(0) ), "Cover currency is not allowed.");
+        require(msg.value == 0, "Eth not required when buying with erc20");
+
+        erc20.safeTransferFrom(msg.sender, address(this), coverPrice);
+        nxmWrapper.unwrap(coverPrice);
         uint256 coverId = _buyCover(_coveredContractAddress, _coverCurrency, _coverDetails, _coverPeriod, _v, _r, _s);
         _mint(msg.sender, coverId);
         
@@ -544,6 +606,7 @@ contract arNFT is
         return quotationData.getCoverDetailsByCoverID2(_coverId);
     }
     
+    //TODO: change public to external to safe gas
     /**
      * @dev Approve an address to spend NXM tokens from the contract.
      * @param _spender Address to be approved.
@@ -553,6 +616,7 @@ contract arNFT is
         nxmToken.safeApprove(_spender, _value);
     }
 
+    //TODO: change public to external to safe gas
     /**
      * @dev Add an allowed cover currency to the arNFT system if one is added to Nexus Mutual.
      * @param _coverCurrency Address of the cover currency to add.

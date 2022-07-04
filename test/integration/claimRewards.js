@@ -115,6 +115,7 @@ contract.only('arInsure', function (accounts) {
       let coverID;
       let coverCurr;
 
+      
       it('should be able to buy cover with eth', async function() {
         coverDetails[4] = new BN(coverDetails[4]).addn(1);
         var vrsdata = await getQuoteValues(
@@ -160,11 +161,12 @@ contract.only('arInsure', function (accounts) {
           smartConAdd,
           this.qt.address
         );
-        await this.arInsure.buyCover(
+        await this.arInsure.buyCoverWnxmSpot(
           smartConAdd,
           toHex('ETH'),
           coverDetails,
           coverPeriod,
+          0,
           vrsdata[0],
           vrsdata[1],
           vrsdata[2],
@@ -177,6 +179,49 @@ contract.only('arInsure', function (accounts) {
         var vrsdata = await getQuoteValues(
           coverDetails,
           toHex('DAI'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.dai.mint(coverHolder, ether('400'));
+        await this.dai.approve(this.p1.address, ether('400'),{from:coverHolder});
+        await this.p1.makeCoverUsingCA(
+          smartConAdd,
+          toHex('DAI'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder}
+        );
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('DAI'),
+          coverPeriod,
+          smartConAdd,
+          this.qt.address
+        );
+        await this.dai.approve(this.arInsure.address, ether('400'),{from:coverHolder});
+        await this.arInsure.approveToken(this.dai.address);
+        const receipt = await this.arInsure.buyCover(
+          smartConAdd,
+          toHex('DAI'),
+          coverDetails,
+          coverPeriod,
+          vrsdata[0],
+          vrsdata[1],
+          vrsdata[2],
+          {from: coverHolder}
+        );
+      });
+
+      it('should be able to buy cover with wNXM', async function(){
+        coverDetails[4] = new BN(coverDetails[4]).addn(1);
+        var vrsdata = await getQuoteValues(
+          coverDetails,
+          toHex('wNXM'),
           coverPeriod,
           smartConAdd,
           this.qt.address
